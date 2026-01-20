@@ -1,0 +1,141 @@
+{
+  "Metadata": {
+    "title": "Evento",
+    "titleTemplate": "Evento | {title}",
+    "description": "Curated corporate entertainment marketplace for booking DJs, MCs, and live bands.",
+    "applicationName": "Evento",
+    "category": "Corporate events",
+    "keywords": [
+      "corporate entertainment",
+      "event booking",
+      "live music",
+      "DJ booking",
+      "MC booking",
+      "bands"
+    ],
+    "ogTitle": "Curated corporate entertainment marketplace",
+    "ogDescription": "Book DJs, MCs, and live bands for corporate events—safely, professionally, and on standard terms.",
+    "ogAlt": "Evento corporate entertainment marketplace"
+  },
+  "Header": {
+    "brand": "Evento",
+    "cta": "Request booking",
+    "navLinks": [
+      { "href": "#process", "label": "How it works" },
+      { "href": "#safety", "label": "Why it’s safe" },
+      { "href": "#proof", "label": "Proof" },
+      { "href": "#talent", "label": "Talent" }
+    ]
+  },
+  "Hero": {
+    "eyebrow": "Enterprise‑ready marketplace",
+    "headline": "Curated corporate entertainment marketplace",
+    "subline": "Book DJs, MCs, and live bands for corporate events—safely, professionally, and on standard terms.",
+    "bullets": [
+      "Escrowed payments",
+      "Platform‑standard contracts",
+      "Verified, curated talent"
+    ],
+    "primaryCta": "Request booking",
+    "secondaryCta": "How it works",
+    "panelEyebrow": "Why teams choose Evento",
+    "panelCopy": "Built for corporate procurement with safety-first workflows and standardized terms."
+  },
+  "Landing": {
+    "how": {
+      "eyebrow": "How it works",
+      "title": "A clear five‑step booking flow",
+      "lead": "Plain language. No edge cases.",
+      "steps": [
+        {
+          "title": "Browse curated talent",
+          "description": "Explore vetted DJs, MCs, and bands matched for corporate events."
+        },
+        {
+          "title": "Request or instant‑book",
+          "description": "Lock the talent that fits your brief and schedule."
+        },
+        {
+          "title": "Pay securely into escrow",
+          "description": "Funds are held safely until the event completes."
+        },
+        {
+          "title": "Event takes place",
+          "description": "Talent performs under platform‑standard terms."
+        },
+        {
+          "title": "Talent paid after completion",
+          "description": "Payment releases only once the booking is fulfilled."
+        }
+      ]
+    },
+    "safety": {
+      "eyebrow": "Why it’s safe",
+      "title": "Designed for risk‑aware corporate teams",
+      "lead": "Every booking is structured to protect time, budget, and brand reputation.",
+      "items": [
+        {
+          "title": "Escrow",
+          "description": "Funds are held until the event is completed."
+        },
+        {
+          "title": "Contracts",
+          "description": "Platform‑standard agreements for every booking."
+        },
+        {
+          "title": "Curation",
+          "description": "Verified talent with corporate experience."
+        },
+        {
+          "title": "Disputes",
+          "description": "Structured resolution if something goes wrong."
+        }
+      ]
+    },
+    "proof": {
+      "eyebrow": "Social proof",
+      "title": "Built for repeat, professional bookings",
+      "lead": "General proof statements, no logos or metrics.",
+      "items": [
+        "Used by corporate teams and agencies",
+        "Built for repeat, professional bookings"
+      ],
+      "testimonials": [
+        "The process feels procurement‑ready while staying fast for events.",
+        "Talent quality is consistently aligned with corporate expectations."
+      ]
+    },
+    "talent": {
+      "eyebrow": "Talent preview",
+      "title": "Illustrative lineup across key categories",
+      "lead": "Examples only. No pricing or inventory claims.",
+      "items": [
+        { "title": "Executive DJ", "description": "Polished sound design for receptions and galas." },
+        { "title": "Corporate MC", "description": "On‑stage flow, timing, and audience energy." },
+        { "title": "Live Band", "description": "Full‑stage performance for premium events." },
+        { "title": "Acoustic Set", "description": "Intimate atmosphere for dinners and VIP lounges." },
+        { "title": "Hybrid Ensemble", "description": "DJ + live instruments for modern formats." },
+        { "title": "Custom Lineup", "description": "Tailored selection based on your brief." }
+      ]
+    },
+    "cta": {
+      "eyebrow": "Ready to book?",
+      "title": "Request booking with confidence",
+      "lead": "No commitment until you review the details.",
+      "primary": "Request booking",
+      "secondary": "How it works",
+      "micro": "No commitment until you review the details."
+    },
+    "footer": {
+      "title": "Minimal, corporate‑ready footer",
+      "description": "Clear expectations on who it’s for and how to reach us.",
+      "links": [
+        { "href": "#talent", "label": "Who it’s for" },
+        { "href": "#safety", "label": "Not for consumer events" },
+        { "href": "mailto:hello@evento.co", "label": "Help / Contact" },
+        { "href": "/terms", "label": "Terms" },
+        { "href": "/privacy", "label": "Privacy" }
+      ]
+    }
+  }
+}
