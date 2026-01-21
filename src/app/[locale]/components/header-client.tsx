@@ -1,6 +1,7 @@
 "use client";
 
-import { LogoFlower } from "@/components/ui/logo-flower";
+import { Suspense, useEffect, useState } from "react";
+
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,6 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Icons } from "@/components/ui/icons";
+import { LogoFlower } from "@/components/ui/logo-flower";
 import {
   NavigationMenu,
   NavigationMenuItem,
@@ -17,12 +20,10 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { ThemeSwitcher, ThemeSwitcherSkeleton } from "@/components/ui/theme-switcher";
-import { LocaleSwitcher, LocaleSwitcherSkeleton } from "./locale-switcher";
-import { Icons } from "@/components/ui/icons";
-import { Suspense, useEffect, useState } from "react";
-import { Link } from "@/i18n/navigation";
 import { Typography } from "@/components/ui/typography";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
+import { LocaleSwitcher, LocaleSwitcherSkeleton } from "./locale-switcher";
 
 type NavItem = { href: string; label: string };
 
@@ -71,7 +72,9 @@ export function HeaderClient({ navItems, brand, cta, menuLabel }: HeaderClientPr
       { rootMargin: "0px 0px -55% 0px", threshold: [0.2, 0.4, 0.6] },
     );
 
-    sections.forEach((section) => observer.observe(section));
+    sections.forEach((section) => {
+      observer.observe(section);
+    });
 
     return () => observer.disconnect();
   }, [navItems]);
@@ -85,7 +88,10 @@ export function HeaderClient({ navItems, brand, cta, menuLabel }: HeaderClientPr
       <div className="mx-auto grid min-h-16 w-full max-w-6xl grid-cols-[auto_1fr_auto] items-center gap-4 px-6 py-3">
         <Link href="/" className="flex items-center gap-3 justify-self-start">
           <span className="relative flex items-center justify-center">
-            <span className="absolute inset-0 rounded-full bg-primary/20 blur-md" aria-hidden="true" />
+            <span
+              className="absolute inset-0 rounded-full bg-primary/20 blur-md"
+              aria-hidden="true"
+            />
             <LogoFlower size="md" className="relative" />
           </span>
           <Typography
@@ -104,7 +110,7 @@ export function HeaderClient({ navItems, brand, cta, menuLabel }: HeaderClientPr
                 <NavigationMenuItem key={item.href}>
                   <NavigationMenuLink
                     href={item.href}
-                    className={`${navigationMenuTriggerStyle()} h-9 whitespace-nowrap text-muted-foreground hover:text-foreground data-[active=true]:text-foreground`}
+                    className={`${navigationMenuTriggerStyle()} nav-underline h-9 whitespace-nowrap text-muted-foreground hover:text-foreground data-[active=true]:text-foreground`}
                     data-active={activeHash === item.href}
                     aria-current={activeHash === item.href ? "page" : undefined}
                   >
@@ -117,7 +123,11 @@ export function HeaderClient({ navItems, brand, cta, menuLabel }: HeaderClientPr
         </nav>
 
         <div className="flex items-center justify-self-end gap-2">
-          <Button asChild size="sm" className="hidden h-9 min-w-40 min-[960px]:inline-flex shadow-sm">
+          <Button
+            asChild
+            size="sm"
+            className="hidden h-9 min-w-40 min-[960px]:inline-flex shadow-sm hover-lift"
+          >
             <a href="#cta">{cta}</a>
           </Button>
           <div className="hidden items-center gap-2 min-[960px]:flex">

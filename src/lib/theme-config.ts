@@ -4,13 +4,13 @@
  * Each theme maintains the calm, trust-building aesthetic
  */
 
-export type ThemeColor = "sage" | "ocean" | "warm" | "lavender"
-export type ThemeMode = "light" | "dark" | "system"
+export type ThemeColor = "sage" | "ocean" | "warm" | "lavender";
+export type ThemeMode = "light" | "dark" | "system";
 
 export interface ThemeConfig {
-  id: ThemeColor
-  name: string
-  description: string
+  id: ThemeColor;
+  name: string;
+  description: string;
 }
 
 export const themeConfigs: ThemeConfig[] = [
@@ -34,7 +34,7 @@ export const themeConfigs: ThemeConfig[] = [
     name: "Лавандула",
     description: "Нежни лилави акценти за релакс и съзерцание",
   },
-]
+];
 
-export const THEME_STORAGE_KEY = "therapy-theme-color"
-export const MODE_STORAGE_KEY = "therapy-theme-mode"
+export const THEME_STORAGE_KEY = "therapy-theme-color";
+export const MODE_STORAGE_KEY = "therapy-theme-mode";

@@ -1,4 +1,4 @@
-import type bg from '../../messages/bg.json';
+import type bg from "../../messages/bg.json";
 
 type Messages = typeof bg;
 

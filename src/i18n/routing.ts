@@ -3,8 +3,8 @@ import { defineRouting } from "next-intl/routing";
 export const routing = defineRouting({
   locales: ["bg", "en"],
   defaultLocale: "bg",
-  localePrefix: 'always', // keeps locale in URL for App Router consistency
-  localeDetection: true
+  localePrefix: "always", // keeps locale in URL for App Router consistency
+  localeDetection: true,
 });
 
 export const localeMeta = {

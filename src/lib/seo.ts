@@ -13,9 +13,7 @@ function normalizeUrl(candidate?: string | null) {
 }
 
 export function getBaseUrl(): URL {
-  const envUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.VERCEL_URL;
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL;
 
   return normalizeUrl(envUrl) ?? new URL(LOCAL_FALLBACK_URL);
 }

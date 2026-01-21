@@ -1,16 +1,13 @@
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 type SpotlightProps = {
-  className?: string
-}
+  className?: string;
+};
 
 export function Spotlight({ className }: SpotlightProps) {
   return (
     <div
-      className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden",
-        className
-      )}
+      className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}
       aria-hidden="true"
     >
       <div
@@ -32,5 +29,5 @@ export function Spotlight({ className }: SpotlightProps) {
         "
       />
     </div>
-  )
+  );
 }

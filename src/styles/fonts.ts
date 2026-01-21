@@ -1,5 +1,5 @@
-import localFont from "next/font/local";
 import { Instrument_Serif, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 
 const PlovdivDisplay = localFont({
   src: [
@@ -28,9 +28,7 @@ const PlovdivDisplay = localFont({
 // });
 
 const PlovdivSans = localFont({
-  src: [
-    { path: "../assets/fonts/PlovdivSans.otf", weight: "400", style: "normal" },
-  ],
+  src: [{ path: "../assets/fonts/PlovdivSans.otf", weight: "400", style: "normal" }],
   variable: "--font-sans",
   preload: false,
 });

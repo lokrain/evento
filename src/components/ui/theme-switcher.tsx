@@ -1,28 +1,28 @@
-"use client"
+"use client";
 
-import { useTheme } from "@/components/ui/theme-provider"
-import { themeConfigs, type ThemeMode } from "@/lib/theme-config"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Icons } from "@/components/ui/icons"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/dropdown-menu";
+import { Icons } from "@/components/ui/icons";
+import { useTheme } from "@/components/ui/theme-provider";
+import { type ThemeMode, themeConfigs } from "@/lib/theme-config";
+import { cn } from "@/lib/utils";
 
 const modeOptions: { value: ThemeMode; label: string; icon: typeof Icons.sun }[] = [
   { value: "light", label: "Светла", icon: Icons.sun },
   { value: "dark", label: "Тъмна", icon: Icons.moon },
   { value: "system", label: "Системна", icon: Icons.monitor },
-]
+];
 
 export function ThemeSwitcher() {
-  const { themeColor, themeMode, setThemeColor, setThemeMode, resolvedMode } = useTheme()
+  const { themeColor, themeMode, setThemeColor, setThemeMode, resolvedMode } = useTheme();
 
-  const CurrentModeIcon = modeOptions.find((m) => m.value === themeMode)?.icon ?? Icons.monitor
+  const CurrentModeIcon = modeOptions.find((m) => m.value === themeMode)?.icon ?? Icons.monitor;
 
   return (
     <DropdownMenu>
@@ -54,7 +54,7 @@ export function ThemeSwitcher() {
               className={cn(
                 "inline-flex h-9 items-center justify-center rounded-md text-muted-foreground transition-colors",
                 "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                themeMode === option.value && "bg-background text-foreground shadow-sm"
+                themeMode === option.value && "bg-background text-foreground shadow-sm",
               )}
               aria-pressed={themeMode === option.value}
               aria-label={option.label}
@@ -78,7 +78,7 @@ export function ThemeSwitcher() {
               className={cn(
                 "group relative flex h-11 items-center justify-center rounded-md border border-border/60 bg-muted/30",
                 "transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                themeColor === theme.id && "border-primary/60"
+                themeColor === theme.id && "border-primary/60",
               )}
               aria-pressed={themeColor === theme.id}
               aria-label={`${theme.name} тема`}
@@ -94,16 +94,21 @@ export function ThemeSwitcher() {
                 <span className="h-4 w-4 rounded-full border border-border bg-accent" />
               </div>
               {themeColor === theme.id && (
-                <Icons.check className="absolute right-1 top-1 h-3 w-3 text-primary" aria-hidden="true" />
+                <Icons.check
+                  className="absolute right-1 top-1 h-3 w-3 text-primary"
+                  aria-hidden="true"
+                />
               )}
             </button>
           ))}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
 
 export function ThemeSwitcherSkeleton() {
-  return <div className="h-9 w-9 animate-pulse rounded-full bg-muted" aria-hidden="true" />
+  return (
+    <div className="h-9 w-9 motion-safe:animate-pulse rounded-full bg-muted" aria-hidden="true" />
+  );
 }

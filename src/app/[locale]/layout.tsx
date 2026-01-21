@@ -1,16 +1,18 @@
-import type { ReactNode } from "react";
-import type { Metadata, Viewport } from "next";
-import { NextIntlClientProvider } from "next-intl";
-import { getMessages, setRequestLocale } from "next-intl/server";
-
-import { languageAlternates, getBaseUrl, getLocalizedUrl, OG_IMAGE_SIZE } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import type { Metadata, Viewport } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import type { ReactNode } from "react";
 
-import { getTranslations } from 'next-intl/server';
-import { latin, plovdiv } from '@/styles/fonts';
+import { getBaseUrl, getLocalizedUrl, languageAlternates, OG_IMAGE_SIZE } from "@/lib/seo";
+import { latin, plovdiv } from "@/styles/fonts";
 
-export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "Metadata" });
   const baseUrl = getBaseUrl();
@@ -82,7 +84,7 @@ export const viewport: Viewport = {
   ],
   colorScheme: "dark light",
   viewportFit: "cover",
-}
+};
 
 export default async function LocaleLayout({
   children,

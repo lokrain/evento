@@ -1,5 +1,5 @@
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -33,13 +33,14 @@ type TypographyProps = React.HTMLAttributes<HTMLElement> &
     as?: React.ElementType;
   };
 
-export function Typography({ as: Component = "p", className, variant, tone, ...props }: TypographyProps) {
-  return (
-    <Component
-      className={cn(typographyVariants({ variant, tone }), className)}
-      {...props}
-    />
-  );
+export function Typography({
+  as: Component = "p",
+  className,
+  variant,
+  tone,
+  ...props
+}: TypographyProps) {
+  return <Component className={cn(typographyVariants({ variant, tone }), className)} {...props} />;
 }
 
 export const H1 = (props: Omit<TypographyProps, "as" | "variant">) => (

@@ -7,11 +7,5 @@ export async function Header() {
   const t = await getTranslations("Header");
   const navItems = (t.raw("navLinks") as NavItem[]) ?? [];
 
-  return (
-    <HeaderClient
-      navItems={navItems}
-      brand={t("brand")}
-      cta={t("cta")}
-    />
-  );
+  return <HeaderClient navItems={navItems} brand={t("brand")} cta={t("cta")} />;
 }

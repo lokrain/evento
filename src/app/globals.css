@@ -1,3 +1,4 @@
+/* biome-ignore-file */
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -384,49 +385,21 @@
   --sidebar-ring: oklch(0.6 0.1 300);
 }
 
-/* ============================================
-   PERFORMANCE-OPTIMIZED ANIMATIONS
-   ============================================ */
-:root {
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @layer utilities {
-  .animate-fade-in {
-    animation: fade-in 0.6s var(--ease-out) forwards;
-  }
-
-  .animation-delay-200 {
-    animation-delay: 0.2s;
-    opacity: 0;
-  }
-
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom);
   }
 
   .hover-lift {
-    @apply transition-transform duration-200 ease-out hover:-translate-y-0.5 hover:shadow-sm;
+    @apply motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-sm motion-reduce:transition-none;
   }
 
   .icon-pop {
-    @apply transition-transform duration-200 ease-out;
+    @apply motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-reduce:transition-none;
   }
 
   .icon-pop-hover {
-    @apply hover:-translate-y-0.5 hover:scale-105;
+    @apply motion-safe:hover:-translate-y-0.5 motion-safe:hover:scale-105;
   }
 
   .section-block {
@@ -436,21 +409,29 @@
   .section-heading {
     @apply max-w-2xl space-y-4;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .nav-underline {
+    @apply relative;
   }
 
-  .animate-fade-in {
-    animation: none;
-    opacity: 1;
-    transform: none;
+  .nav-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.25rem;
+    height: 2px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    opacity: 0.6;
+    transition: transform 200ms var(--default-transition-timing-function);
+  }
+
+  .nav-underline:hover::after,
+  .nav-underline:focus-visible::after,
+  .nav-underline[data-active="true"]::after {
+    transform: scaleX(1);
   }
 }
 

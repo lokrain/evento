@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { usePathname, useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
-import { useTransition } from 'react';
-import { cn } from '@/lib/utils';
-import { localeMeta, routing } from '@/i18n/routing';
-import { Spinner } from '@/components/ui/spinner';
+import { usePathname, useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
+import { useTransition } from "react";
+import { Spinner } from "@/components/ui/spinner";
+import { localeMeta, routing } from "@/i18n/routing";
+import { cn } from "@/lib/utils";
 
 const FlagBg = () => (
   <svg viewBox="0 0 3 2" aria-hidden="true" className="h-full w-full block">
@@ -48,16 +48,22 @@ export function LocaleSwitcher() {
   const [isPending, startTransition] = useTransition();
 
   const switchLocale = (nextLocale: string) => {
-    const segments = pathname.split('/').filter(Boolean);
+    const segments = pathname.split("/").filter(Boolean);
     segments[0] = nextLocale; // replace locale segment
-    router.push('/' + segments.join('/'));
+    router.push(`/${segments.join("/")}`);
   };
 
   const locales = routing.locales;
   const currentIndex = locales.indexOf(locale as (typeof locales)[number]);
   const nextLocale = locales[(currentIndex + 1) % locales.length];
-  const current = localeMeta[locale as keyof typeof localeMeta] ?? { label: locale.toUpperCase(), flag: 'en' };
-  const next = localeMeta[nextLocale as keyof typeof localeMeta] ?? { label: nextLocale.toUpperCase(), flag: 'en' };
+  const current = localeMeta[locale as keyof typeof localeMeta] ?? {
+    label: locale.toUpperCase(),
+    flag: "en",
+  };
+  const next = localeMeta[nextLocale as keyof typeof localeMeta] ?? {
+    label: nextLocale.toUpperCase(),
+    flag: "en",
+  };
 
   return (
     <button
@@ -66,7 +72,7 @@ export function LocaleSwitcher() {
       className={cn(
         "inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-background p-0 transition hover-lift",
         "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        isPending && "cursor-wait"
+        isPending && "cursor-wait",
       )}
       disabled={isPending}
       aria-busy={isPending}
@@ -84,5 +90,7 @@ export function LocaleSwitcher() {
 }
 
 export function LocaleSwitcherSkeleton() {
-  return <div className="h-9 w-9 animate-pulse rounded-full bg-muted" aria-hidden="true" />
+  return (
+    <div className="h-9 w-9 motion-safe:animate-pulse rounded-full bg-muted" aria-hidden="true" />
+  );
 }

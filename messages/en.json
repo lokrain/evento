@@ -31,11 +31,7 @@
     "eyebrow": "Enterprise‑ready marketplace",
     "headline": "Curated corporate entertainment marketplace",
     "subline": "Book DJs, MCs, and live bands for corporate events—safely, professionally, and on standard terms.",
-    "bullets": [
-      "Escrowed payments",
-      "Platform‑standard contracts",
-      "Verified, curated talent"
-    ],
+    "bullets": ["Escrowed payments", "Platform‑standard contracts", "Verified, curated talent"],
     "primaryCta": "Request booking",
     "secondaryCta": "How it works",
     "panelEyebrow": "Why teams choose Evento",
@@ -96,10 +92,7 @@
       "eyebrow": "Social proof",
       "title": "Built for repeat, professional bookings",
       "lead": "General proof statements, no logos or metrics.",
-      "items": [
-        "Used by corporate teams and agencies",
-        "Built for repeat, professional bookings"
-      ],
+      "items": ["Used by corporate teams and agencies", "Built for repeat, professional bookings"],
       "testimonials": [
         "The process feels procurement‑ready while staying fast for events.",
         "Talent quality is consistently aligned with corporate expectations."
@@ -110,10 +103,16 @@
       "title": "Illustrative lineup across key categories",
       "lead": "Examples only. No pricing or inventory claims.",
       "items": [
-        { "title": "Executive DJ", "description": "Polished sound design for receptions and galas." },
+        {
+          "title": "Executive DJ",
+          "description": "Polished sound design for receptions and galas."
+        },
         { "title": "Corporate MC", "description": "On‑stage flow, timing, and audience energy." },
         { "title": "Live Band", "description": "Full‑stage performance for premium events." },
-        { "title": "Acoustic Set", "description": "Intimate atmosphere for dinners and VIP lounges." },
+        {
+          "title": "Acoustic Set",
+          "description": "Intimate atmosphere for dinners and VIP lounges."
+        },
         { "title": "Hybrid Ensemble", "description": "DJ + live instruments for modern formats." },
         { "title": "Custom Lineup", "description": "Tailored selection based on your brief." }
       ]
