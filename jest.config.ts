@@ -10,8 +10,16 @@ const config: Config = {
   },
   setupFilesAfterEnv: ["<rootDir>/tests/setupTests.ts"],
   transform: {
-    "^.+\\.(ts|tsx)$": ["ts-jest", { tsconfig: "<rootDir>/tsconfig.json" }],
-  },
+    "^.+\\.(t|j)sx?$": [
+      "@swc/jest",
+      {
+        jsc: {
+          parser: { syntax: "typescript", tsx: true },
+          transform: { react: { runtime: "automatic" } }
+        }
+      }
+    ]
+  }
 };
 
 const nextJestConfig = createJestConfig({ dir: "./" });

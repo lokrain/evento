@@ -1,5 +1,13 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Headless carousel (accessibility + autoplay)
+
+- `ariaLive`: explicitly set the carousel region’s `aria-live` (autoplay defaults to `polite`).
+- `ariaControlsId`: supply the viewport/track id so prev/next buttons emit `aria-controls` automatically.
+- Autoplay uses a re-arming `setTimeout` tied to `transitionend` to reduce drift under tab throttling.
+
+See `src/components/headless/carousel/README.md` for a usage snippet.
+
 ## Getting Started
 
 First, run the development server:

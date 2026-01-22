@@ -20,6 +20,9 @@
 # production
 /build
 
+# legacy experimental code (excluded from tracking/testing)
+/src/components/headless/old/
+
 # misc
 .DS_Store
 *.pem

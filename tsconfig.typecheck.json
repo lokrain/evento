@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/components/headless/**/*",
+    "tests/**/*",
+    "test-d/**/*",
+    "next-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/components/headless/old/**",
+    "tests/integration/**"
+  ]
+}

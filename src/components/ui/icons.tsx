@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type * as React from "react";
 
-type IconProps = React.HTMLAttributes<SVGElement>;
+type IconProps = React.HTMLAttributes<SVGSVGElement>;
 const withTitle = (label: string, props: IconProps) => ({
   role: "img",
   "aria-label": label,

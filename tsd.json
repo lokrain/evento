@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "strict": true
+  },
+  "entryPoints": [
+    "src/components/headless/carousel/index.ts"
+  ]
+}
