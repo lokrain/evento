@@ -1,36 +1,5 @@
-// src/components/headless/carousel/index.ts
+// Public surface for the headless carousel engine.
+// TODO: implement and re-export full API once engine is built.
 
-// Hook
-export { useCarousel } from "./engine/use-carousel";
-export { default as useCarouselDefault } from "./engine/use-carousel";
-
-// Public types (re-export from the canonical public types file)
-export type {
-  UseCarouselOptions,
-  CarouselReturn,
-  CarouselEngine,
-  CarouselBindings,
-
-  Axis,
-  ReadingDirection,
-  SnapTarget,
-  LiveRegionPoliteness,
-
-  CommitThreshold,
-  AutoplayGate,
-
-  Controllable,
-  Controlled,
-  Uncontrolled,
-
-  CapabilityOf,
-  IndexCapabilityOf,
-  PlayingCapabilityOf,
-
-  ReadonlyCapability,
-  WritableCapability,
-  ReadonlyIndex,
-  WritableIndex,
-  ReadonlyPlaying,
-  WritablePlaying,
-} from "./engine/types-public";
+export * from "./core/types";
+export { useCarousel } from "./use-carousel";

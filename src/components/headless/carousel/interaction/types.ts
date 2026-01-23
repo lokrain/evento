@@ -1,1 +1,0 @@
-export type PointerIntent = "next" | "prev" | "none";
