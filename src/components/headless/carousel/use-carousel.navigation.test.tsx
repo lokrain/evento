@@ -17,24 +17,44 @@ jest.mock("./dom/io/scroll-to", () => ({
   }),
 }));
 
+// Track how many times sampleSettle is called for each token
+const settleFrameCounts = new Map<number, number>();
+
 jest.mock("./model/settle/settle-raf", () => ({
-  createRafSettleSampler: ({ onFrame, shouldContinue }: { onFrame: () => void; shouldContinue: () => boolean }) => ({
-    start: () => {
-      if (shouldContinue()) onFrame();
-    },
-    stop: () => {},
-    isRunning: () => false,
-  }),
+  createRafSettleSampler: ({ onFrame, shouldContinue }: { onFrame: () => void; shouldContinue: () => boolean }) => {
+    let running = false;
+    return {
+      start: () => {
+        running = true;
+        // Simulate up to 10 frames
+        let frames = 0;
+        while (shouldContinue() && running && frames < 20) {
+          onFrame();
+          frames++;
+        }
+      },
+      stop: () => {
+        running = false;
+      },
+      isRunning: () => running,
+    };
+  },
 }));
 
 jest.mock("./model/settle/settle-machine", () => {
   const actual = jest.requireActual("./model/settle/settle-machine");
   return {
     ...actual,
-    sampleSettle: (state: any) => ({
-      ...state,
-      settledToken: state.pendingToken,
-    }),
+    sampleSettle: (state: any) => {
+      // Simulate settle after 3 frames
+      if (state.pendingToken == null) return state;
+      const count = settleFrameCounts.get(state.pendingToken) ?? 0;
+      if (count >= 2) {
+        return { ...state, settledToken: state.pendingToken };
+      }
+      settleFrameCounts.set(state.pendingToken, count + 1);
+      return { ...state, settledToken: null };
+    },
   };
 });
 
@@ -123,27 +143,28 @@ function applyGeometry() {
 describe("useCarousel navigation", () => {
   beforeEach(() => {
     scrollOffset = 0;
+    settleFrameCounts.clear();
   });
 
   it("advances on keyboard navigation", async () => {
     render(<CarouselHarness loop={false} />);
 
-    await waitFor(() => expect(screen.getByTestId("slide-0")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("slide-0")).toBeInTheDocument(), { timeout: 1000 });
     applyGeometry();
 
     const root = screen.getByTestId("root");
     fireEvent.keyDown(root, { key: "ArrowRight" });
 
-    await waitFor(() => expect(screen.getByTestId("index").textContent).toBe("1"));
+    await waitFor(() => expect(screen.getByTestId("index").textContent).toBe("1"), { timeout: 1000 });
   });
 
   it("wraps when looping", async () => {
     render(<CarouselHarness loop initialIndex={2} />);
 
-    await waitFor(() => expect(screen.getByTestId("slide-0")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("slide-0")).toBeInTheDocument(), { timeout: 1000 });
     applyGeometry();
 
     fireEvent.click(screen.getByTestId("next"));
-    await waitFor(() => expect(screen.getByTestId("index").textContent).toBe("0"));
+    await waitFor(() => expect(screen.getByTestId("index").textContent).toBe("0"), { timeout: 1000 });
   });
 });

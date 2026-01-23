@@ -10,10 +10,10 @@ describe("attachReducedMotionGate", () => {
       matches: false,
       media: "(prefers-reduced-motion: reduce)",
       onchange: null,
-      addEventListener: (_type, listener) => {
+      addEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
         listeners.add(listener as (event: MediaQueryListEvent) => void);
       },
-      removeEventListener: (_type, listener) => {
+      removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject) => {
         listeners.delete(listener as (event: MediaQueryListEvent) => void);
       },
       addListener: () => {},

@@ -12,38 +12,55 @@
 
 export type Unsubscribe = () => void;
 
+const IDLE_MS_DEFAULT = 120;
+
+/**
+ * Subscribes to "scrollend" event on a viewport element, with fallback to idle-time scroll detection.
+ * @param viewport The scrollable element to observe.
+ * @param onScrollEnd Callback invoked when scrolling ends.
+ * @param options Optional settings:
+ *   - forceFallback: Always use idle-time fallback, even if "scrollend" is supported.
+ *   - idleMs: Fallback idle timeout in milliseconds (default: 120).
+ * @returns Unsubscribe function to remove listeners.
+ */
 export function subscribeScrollEnd(
   viewport: HTMLElement,
   onScrollEnd: () => void,
-  options?: { readonly forceFallback?: boolean },
+  options?: { readonly forceFallback?: boolean; readonly idleMs?: number },
 ): Unsubscribe {
-  // Feature-detect: some environments may not recognize the event at all.
-  // We still attach using string type; if unsupported, fall back to idle-time scroll.
-  const supportsScrollEnd =
-    !options?.forceFallback &&
-    "onscrollend" in (viewport as HTMLElement & { onscrollend?: unknown });
+  // Helper for feature detection
+  function supportsScrollEndEvent(el: HTMLElement): boolean {
+    return "onscrollend" in (el as HTMLElement & { onscrollend?: unknown });
+  }
 
-  if (supportsScrollEnd) {
-    const handler = () => {
+  const useNativeScrollEnd =
+    !options?.forceFallback && supportsScrollEndEvent(viewport);
+
+  if (useNativeScrollEnd) {
+    const handler: EventListener = () => {
       onScrollEnd();
     };
 
-    viewport.addEventListener("scrollend", handler as EventListener, { passive: true });
+    viewport.addEventListener("scrollend", handler, { passive: true });
 
+    let unsubscribed = false;
     return () => {
-      viewport.removeEventListener("scrollend", handler as EventListener);
+      if (!unsubscribed) {
+        viewport.removeEventListener("scrollend", handler);
+        unsubscribed = true;
+      }
     };
   }
 
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  const idleMs = 120;
+  let timeoutId: number | null = null;
+  const idleMs = options?.idleMs ?? IDLE_MS_DEFAULT;
 
-  const handleScroll = () => {
+  const handleScroll: EventListener = () => {
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }
 
-    timeoutId = setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       timeoutId = null;
       onScrollEnd();
     }, idleMs);
@@ -51,10 +68,14 @@ export function subscribeScrollEnd(
 
   viewport.addEventListener("scroll", handleScroll, { passive: true });
 
+  let unsubscribed = false;
   return () => {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
+    if (!unsubscribed) {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      viewport.removeEventListener("scroll", handleScroll);
+      unsubscribed = true;
     }
-    viewport.removeEventListener("scroll", handleScroll);
   };
 }
