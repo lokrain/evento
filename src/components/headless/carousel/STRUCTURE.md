@@ -9,61 +9,58 @@ This document defines the **exact folder structure** and the **public export sur
 ```
 @/components/headless/carousel/
   index.ts                       # ONLY public exports
-  README.md                      # Canonical contract (see README canvas)
+  README.md                      # Canonical contract
+  use-carousel.tsx               # Orchestrator: returns { engine, bindings }
 
-  engine/
-    use-carousel.tsx             # Orchestrator: returns { engine, bindings }
-    options.ts                   # Normalize public options -> internal config
-    types-public.ts              # Public types (re-exported)
-    types-internal.ts            # Internal engine-only types
-    state.ts                     # Canonical React state/refs
+  actions/                       # Action builders + validation
+    action-types.ts
+    action-validate.ts
+    builders/
 
-  model/
-    types.ts                     # SnapModel and pure math types
-    index-math.ts                # mod / clamp / numeric guards
-    loop.ts                      # banding + offset normalization
-    snap-targets.ts              # nearest target resolution
-    thresholds.ts                # CommitThreshold -> px resolver
-    duration.ts                  # duration from distance/speed helpers
+  a11y/                          # ARIA + announce helpers
+    announce/
+    aria/
 
-  measure/
-    compute-model.ts             # Pure: DOMRects -> SnapModel
-    use-measure-model.ts         # ResizeObserver + RAF scheduling
-    refs.ts                      # ref registration helpers
+  bindings/                      # DOM prop builders
+    controls.ts
+    root.ts
+    slide.ts
+    track.ts
+    viewport.ts
 
-  motion/
-    compute-transform.ts         # offset + axis -> transform string
-    compute-transition.ts        # duration + easing -> transition string
-    use-track-transform.ts       # SINGLE DOM writer
-    use-transition.ts            # transitionend -> normalize + settle
-
-  interaction/
-    keyboard.ts                  # pure key -> intent mapping
-    use-pointer-drag.ts          # pointer capture + velocity + release intent
-    focus-within.ts              # focus-within tracker
+  core/                          # brands/constants/types
+    brands.ts
+    clamp.ts
+    constants.ts
+    invariant.ts
     types.ts
 
-  autoplay/
-    gates.ts                     # pure autoplay gate evaluation
-    use-autoplay.ts              # timers + scheduling
-    types.ts
+  dom/                           # DOM listeners + refs + gates
+    gates/
+    io/
+    listeners/
+    refs/
 
-  a11y/
-    aria.ts                      # roles/labels helpers
-    use-announcer.ts             # live region announcements
-    types.ts
+  math/                          # Fenwick + numeric helpers
+    fenwick/
 
-  platform/
-    use-prefers-reduced-motion.ts
-    visibility.ts
+  measure/                       # Resize observers + measurement queue
+    anchor-lock.ts
+    flush-measure.ts
+    slide-observer.ts
+    viewport-observer.ts
 
-  bindings/
-    use-carousel-bindings.ts     # default DOM bindings
-    types.ts
+  model/                         # Pure services (autoplay, settle, snap, virtual)
+    autoplay/
+    settle/
+    snap/
+    virtual/
 
-  testing/
-    fixtures.ts                  # fake rects, raf/timers
-    harness.tsx                  # React test harness
+  store/                         # State + reducer + selectors
+    state.ts
+    reducer.ts
+    reduce/
+    selectors/
 ```
 
 ---
@@ -72,7 +69,7 @@ This document defines the **exact folder structure** and the **public export sur
 
 ```ts
 // Hook
-export { useCarousel } from "./engine/use-carousel";
+export { useCarousel } from "./use-carousel";
 
 // Public types
 export type {
@@ -80,6 +77,7 @@ export type {
   CarouselReturn,
   CarouselEngine,
   CarouselBindings,
+  CarouselApi,
 
   Axis,
   ReadingDirection,
@@ -93,25 +91,20 @@ export type {
   Controlled,
   Uncontrolled,
 
-  CarouselCapabilities,
-  WritableIndex,
+  CapabilityOf,
+  IndexCapabilityOf,
+  PlayingCapabilityOf,
+  ReadonlyCapability,
+  WritableCapability,
   ReadonlyIndex,
-} from "./engine/types-public";
-```
-
-### Optional advanced exports
-
-If you want consumers to build **custom bindings**:
-
-```ts
-export { useCarouselBindings } from "./bindings/use-carousel-bindings";
-export type { CarouselBindingsOptions } from "./bindings/types";
+  WritableIndex,
+} from "./core/types";
 ```
 
 ---
 
 ## Export Rules (Non-Negotiable)
 
-* `index.ts` must never export internals
-* `model/`, `motion/`, `measure/`, `interaction/`, `autoplay/` are engine-private
-* Public API changes require updating README first
+- `index.ts` must never export internals.
+- `actions/`, `dom/`, `model/`, `measure/`, `store/` are engine-private.
+- Public API changes require updating README first.

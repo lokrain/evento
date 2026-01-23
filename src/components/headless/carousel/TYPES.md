@@ -18,7 +18,7 @@ import type * as React from "react";
 
 export type Axis = "x" | "y";
 export type ReadingDirection = "ltr" | "rtl";
-export type SnapTarget = "start" | "center";
+export type SnapTarget = "start" | "center" | "end";
 export type LiveRegionPoliteness = "polite" | "assertive";
 
 /* -------------------------------------------------------------------------------------------------

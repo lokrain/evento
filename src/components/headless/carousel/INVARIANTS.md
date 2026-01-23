@@ -10,17 +10,17 @@ This version incorporates **max strictness everywhere**, including capability-ty
 
 These are compile-time contracts. They must be validated with `tsd` (or equivalent) in CI.
 
-T0. `UseCarouselReturn` MUST expose a capability-typed control surface.
+T0. `CarouselReturn` MUST expose a capability-typed control surface (engine + bindings).
 
 T1. If `autoplay.enabled === false`, then:
 
-- `controls.autoplay.play` MUST be `never`
-- `controls.autoplay.pause` MUST be `never`
-- `controls.autoplay.toggle` MUST be `never`
+- `engine.autoplay.play` MUST be `never`
+- `engine.autoplay.pause` MUST be `never`
+- `engine.autoplay.toggle` MUST be `never`
 
 T2. If `autoplay.enabled === true` but `slideCount <= 1`, then:
 
-- `controls.autoplay.*` MUST be `never` (autoplay is not allowed when no meaningful movement exists).
+- `engine.autoplay.*` MUST be `never` (autoplay is not allowed when no meaningful movement exists).
 
 T3. If `indexControl` is `controlled`, then:
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ComponentPropsWithRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { useCarousel } from "@/components/headless/carousel";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,37 +14,24 @@ type AutoCarouselProps = {
 };
 
 function AutoCarousel({ slides, reverse = false, delayMs = 4000, className }: AutoCarouselProps) {
-  const controlsId = useId();
-  const slideIds = useMemo(
-    () => Array.from({ length: slides }, (_, i) => `slide-${i + 1}`),
-    [slides],
-  );
-
   const reverseTimerRef = useRef<number | null>(null);
 
-  const {
-    renderCount,
-    getRootProps,
-    getViewportProps,
-    getTrackProps,
-    getSlideProps,
-    scrollPrev,
-    scrollNext,
-    isReady,
-  } = useCarousel({
+  const { engine, bindings } = useCarousel({
     slideCount: slides,
-    axis: "y",
-    ariaControlsId: controlsId,
-    autoplay: reverse ? { enabled: false } : { enabled: true, delayMs },
-    snap: { durationMs: 780, easing: { cubicBezier: [0.22, 0.61, 0.36, 1] } },
-    debug: true
+    layout: { axis: "y", readingDirection: "ltr", snapTo: "center" },
+    loop: { enabled: true },
+    accessibility: { label: "Hero carousel" },
+    autoplay: { enabled: !reverse, dwellMs: delayMs },
+    debug: true,
   });
+
+  const isReady = engine.isReady;
 
   useEffect(() => {
     if (!reverse || !isReady) return;
     const arm = () => {
       reverseTimerRef.current = window.setTimeout(() => {
-        scrollPrev();
+        engine.prev();
         arm();
       }, delayMs);
     };
@@ -54,7 +42,7 @@ function AutoCarousel({ slides, reverse = false, delayMs = 4000, className }: Au
         reverseTimerRef.current = null;
       }
     };
-  }, [reverse, delayMs, scrollPrev, isReady]);
+  }, [reverse, delayMs, engine, isReady]);
 
   const itemHeightPct = (i: number) => {
     const heights = [26, 32, 28, 30, 24];
@@ -62,43 +50,44 @@ function AutoCarousel({ slides, reverse = false, delayMs = 4000, className }: Au
   };
 
   return (
-    <div
-      {...getRootProps({
-        className: `relative h-full overflow-hidden ${className ?? ""}`.trim(),
-        "data-orientation": "vertical",
-      })}
-    >
+      <div
+        {...bindings.getRootProps({
+          className: `relative h-full overflow-hidden ${className ?? ""}`.trim(),
+          "data-orientation": "vertical",
+        })}
+      >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.08),transparent_35%),radial-gradient(circle_at_70%_60%,rgba(255,255,255,0.06),transparent_30%)]" />
 
       <div
-        {...getViewportProps({
-          id: controlsId,
+        {...bindings.getViewportProps({
           className: "overflow-hidden h-full relative",
         })}
       >
         <div
-          {...getTrackProps({
+          {...bindings.getTrackProps({
             className: "flex flex-col gap-4 p-3 will-change-transform",
           })}
         >
-          {Array.from({ length: renderCount }).map((_, renderIndex) => {
-            const realIndex = renderIndex % slides;
+          {Array.from({ length: engine.renderCount }).map((_, renderIndex) => {
+            const realIndex = engine.realIndexFromRenderIndex(renderIndex) % slides;
             const height = `${itemHeightPct(realIndex)}dvh`;
-            const tone = reverse ? "from-primary/15 via-slate-900/60" : "from-indigo-400/15 via-slate-900/60";
+            const tone = reverse
+              ? "from-primary/15 via-slate-900/60"
+              : "from-indigo-400/15 via-slate-900/60";
+            const slideProps = bindings.getSlideProps(renderIndex, {
+              className: "shrink-0",
+              style: { maxHeight: height },
+            }) as ComponentPropsWithRef<"div">;
             return (
-              <div
-                key={renderIndex}
-                {...getSlideProps(renderIndex, {
-                  className: "shrink-0",
-                  style: { maxHeight: height },
-                })}
-              >
+              <div key={slideProps.id ?? `slide-${renderIndex}`} {...slideProps}>
                 <Card className="group relative overflow-hidden border border-white/10 bg-white/5 backdrop-blur shadow-2xl">
                   <div className={`absolute inset-0 bg-linear-to-br ${tone} to-transparent`} aria-hidden="true" />
                   <CardContent className="relative flex h-full items-center justify-between gap-4 p-6">
                     <div className="flex flex-col gap-1 text-left">
                       <span className="text-xs uppercase tracking-[0.25em] text-white/70">Signature</span>
-                      <span className="text-4xl font-semibold text-white drop-shadow-sm">{realIndex + 1}</span>
+                      <span className="text-4xl font-semibold text-white drop-shadow-sm">
+                        {realIndex + 1}
+                      </span>
                       <span className="text-sm text-white/70">Curated talent • Premium billing</span>
                     </div>
                     <div className="flex items-center gap-2 rounded-full border border-white/15 bg-black/30 px-3 py-1 text-xs text-white/80 backdrop-blur">

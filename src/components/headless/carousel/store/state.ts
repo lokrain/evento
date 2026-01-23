@@ -7,6 +7,7 @@ export interface CarouselGatesState {
   readonly focusWithin: boolean;
   readonly hover: boolean;
   readonly visibilityHidden: boolean;
+  readonly dragging: boolean;
   readonly manualPause: boolean;
 }
 
@@ -190,6 +191,7 @@ export function createInitialState(opts: CreateInitialStateOptions): CarouselSta
       focusWithin: false,
       hover: false,
       visibilityHidden: false,
+      dragging: false,
       manualPause: false,
     },
 

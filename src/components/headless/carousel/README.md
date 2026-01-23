@@ -5,6 +5,10 @@ A **headless, strictly-typed, motion-aware carousel engine** for React.
 This project is not a “carousel component”.
 It is a **deterministic interaction engine** that manages layout, motion, interaction, automation, and accessibility, while leaving all rendering and styling to the consumer.
 
+> **Important note for AI-assisted work:**
+> Do not fix errors just to silence them. First understand the root cause,
+> confirm the correct approach, and then implement the fix.
+
 ---
 
 ## Goals
@@ -42,6 +46,15 @@ It is a **deterministic interaction engine** that manages layout, motion, intera
 
 ---
 
+## Options Compatibility
+
+The current public API uses the **typed options from `core/types.ts` + `CreateInitialStateOptions`**
+(e.g., `axis`, `dir`, `loop`, `slideCount`, `label`, `autoplayEnabled`). Legacy option shapes have
+been migrated in the app codebase—do not add new legacy aliases. If a new option is required,
+add it to the public types and update callers explicitly.
+
+---
+
 ## Mental Model
 
 The carousel is modeled as:
@@ -75,19 +88,24 @@ There is only:
  │          Engine Domains                                Bindings
  │                                                      (optional)
  │
- │  model/        → pure math (snap, loop, thresholds)
- │  measure/      → DOM read → SnapModel
- │  motion/       → DOM write (single writer)
- │  interaction/  → pointer + keyboard intent
- │  autoplay/     → automation + gating
- │  a11y/         → announcements only
- │  platform/     → reduced motion, visibility
+ │  actions/      → typed action builders + validators
+ │  model/        → pure logic (autoplay, settle, snap, virtual)
+ │  measure/      → Resize observers + measurement batching
+ │  dom/          → listeners, refs, gates (no policy)
+ │  store/        → reducer + state + selectors
+ │  a11y/         → announcements + ARIA helpers
  │
  └────────────────────────────────────────────────────────────┘
 ```
 
 **Rule:** domains may not depend on each other cyclically.
 Only the orchestrator composes them.
+
+### Barrel Exports (Internal)
+
+Folder-level `index.ts` files exist for convenience and tooling, but prefer direct imports
+for runtime code to keep bundles lean. The barrel files only re-export leaf modules to
+avoid cycles; if a cycle is discovered, document the exception and keep the direct import.
 
 ---
 
@@ -201,6 +219,14 @@ User intent is interpreted via **explicit distance-based thresholds**.
 ```
 
 This avoids magic ratios and allows designers and engineers to reason in real units.
+
+### Snap Alignment
+
+Snap alignment defines how slides line up within the viewport:
+
+- `start`: slide start aligns to viewport start
+- `center`: slide center aligns to viewport center
+- `end`: slide end aligns to viewport end
 
 ---
 

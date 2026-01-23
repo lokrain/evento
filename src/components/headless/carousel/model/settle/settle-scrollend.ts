@@ -12,16 +12,49 @@
 
 export type Unsubscribe = () => void;
 
-export function subscribeScrollEnd(viewport: HTMLElement, onScrollEnd: () => void): Unsubscribe {
+export function subscribeScrollEnd(
+  viewport: HTMLElement,
+  onScrollEnd: () => void,
+  options?: { readonly forceFallback?: boolean },
+): Unsubscribe {
   // Feature-detect: some environments may not recognize the event at all.
-  // We still attach using string type; if unsupported, it simply never fires.
-  const handler = () => {
-    onScrollEnd();
+  // We still attach using string type; if unsupported, fall back to idle-time scroll.
+  const supportsScrollEnd =
+    !options?.forceFallback &&
+    "onscrollend" in (viewport as HTMLElement & { onscrollend?: unknown });
+
+  if (supportsScrollEnd) {
+    const handler = () => {
+      onScrollEnd();
+    };
+
+    viewport.addEventListener("scrollend", handler as EventListener, { passive: true });
+
+    return () => {
+      viewport.removeEventListener("scrollend", handler as EventListener);
+    };
+  }
+
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const idleMs = 120;
+
+  const handleScroll = () => {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+
+    timeoutId = setTimeout(() => {
+      timeoutId = null;
+      onScrollEnd();
+    }, idleMs);
   };
 
-  viewport.addEventListener("scrollend", handler as EventListener, { passive: true });
+  viewport.addEventListener("scroll", handleScroll, { passive: true });
 
   return () => {
-    viewport.removeEventListener("scrollend", handler as EventListener);
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+    viewport.removeEventListener("scroll", handleScroll);
   };
 }

@@ -1,10 +1,11 @@
 import type { Config } from "jest";
 
 const config: Config = {
-  testEnvironment: "node",
+  testEnvironment: "jsdom",
   testMatch: [
     "<rootDir>/tests/unit/**/*.test.ts?(x)",
     "<rootDir>/tests/unit/**/*.spec.ts?(x)",
+    "<rootDir>/src/components/headless/carousel/**/*.test.ts?(x)",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

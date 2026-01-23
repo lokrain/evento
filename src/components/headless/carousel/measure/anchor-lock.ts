@@ -1,3 +1,5 @@
-export function computeAnchorLock(_current: number, _target: number): number {
-  return 0;
+export function computeAnchorLock(current: number, target: number): number {
+  const cur = Number.isFinite(current) ? current : 0;
+  const next = Number.isFinite(target) ? target : cur;
+  return next;
 }

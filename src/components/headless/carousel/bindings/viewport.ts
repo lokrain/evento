@@ -1,4 +1,5 @@
 import type * as React from "react";
+import type { DataAttributes } from "../core/types";
 
 export interface ViewportBindings {
   readonly role: "group";
@@ -6,13 +7,27 @@ export interface ViewportBindings {
   readonly "aria-live": "off";
 }
 
-export function getViewportBindings(params: {
-  readonly ref: React.Ref<HTMLElement>;
-}): ViewportBindings & { readonly ref: React.Ref<HTMLElement> } {
-  return {
+export type ViewportBindingsProps = ViewportBindings &
+  React.HTMLAttributes<HTMLElement> &
+  DataAttributes & { readonly ref: React.Ref<HTMLElement> };
+
+export function getViewportBindings(
+  params: {
+    readonly ref: React.Ref<HTMLElement>;
+  },
+  user?: React.HTMLAttributes<HTMLElement> & DataAttributes,
+): ViewportBindingsProps {
+  const base: ViewportBindings & { readonly ref: React.Ref<HTMLElement> } = {
     role: "group",
     tabIndex: -1,
     "aria-live": "off", // live region handled separately
     ref: params.ref,
   };
+
+  const merged: ViewportBindingsProps = {
+    ...(user ?? {}),
+    ...base,
+  };
+
+  return merged;
 }

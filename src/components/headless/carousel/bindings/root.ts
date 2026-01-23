@@ -1,21 +1,41 @@
 import type * as React from "react";
+import { getRootAriaProps } from "../a11y/aria/root-props";
+import type { DataAttributes } from "../core/types";
 
 export interface RootBindings {
   readonly role: "region";
   readonly tabIndex: 0;
-  readonly "aria-roledescription": "carousel";
+  readonly "aria-roledescription"?: string;
   readonly "aria-label": string;
 }
 
-export function getRootBindings(params: {
-  readonly label: string;
-  readonly ref: React.Ref<HTMLElement>;
-}): RootBindings & { readonly ref: React.Ref<HTMLElement> } {
-  return {
-    role: "region",
-    tabIndex: 0,
-    "aria-roledescription": "carousel",
-    "aria-label": params.label,
+export type RootBindingsProps = RootBindings &
+  React.HTMLAttributes<HTMLElement> &
+  DataAttributes & { readonly ref: React.Ref<HTMLElement> };
+
+export function getRootBindings(
+  params: {
+    readonly label: string;
+    readonly ref: React.Ref<HTMLElement>;
+    readonly id?: string;
+    readonly roledescription?: string | false;
+  },
+  user?: React.HTMLAttributes<HTMLElement> & DataAttributes,
+): RootBindingsProps {
+  const aria = getRootAriaProps({
+    label: params.label,
+    id: params.id,
+    roledescription: params.roledescription,
+  });
+  const base: RootBindings & { readonly ref: React.Ref<HTMLElement> } = {
+    ...aria,
     ref: params.ref,
   };
+
+  const merged: RootBindingsProps = {
+    ...(user ?? {}),
+    ...base,
+  };
+
+  return merged;
 }
