@@ -19,14 +19,26 @@ export function attachHoverGate(params: {
 	const onEnter = () => setHover(true);
 	const onLeave = () => setHover(false);
 
-	root.addEventListener("pointerenter", onEnter, { passive: true });
-	root.addEventListener("pointerleave", onLeave, { passive: true });
+	const supportsPointer = typeof window !== "undefined" && "PointerEvent" in window;
+
+	if (supportsPointer) {
+		root.addEventListener("pointerenter", onEnter, { passive: true });
+		root.addEventListener("pointerleave", onLeave, { passive: true });
+	} else {
+		root.addEventListener("mouseenter", onEnter, { passive: true });
+		root.addEventListener("mouseleave", onLeave, { passive: true });
+	}
 
 	// Initialize based on current hover state.
 	setHover(isHovering(root));
 
 	return () => {
-		root.removeEventListener("pointerenter", onEnter);
-		root.removeEventListener("pointerleave", onLeave);
+		if (supportsPointer) {
+			root.removeEventListener("pointerenter", onEnter);
+			root.removeEventListener("pointerleave", onLeave);
+			return;
+		}
+		root.removeEventListener("mouseenter", onEnter);
+		root.removeEventListener("mouseleave", onLeave);
 	};
 }

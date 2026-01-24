@@ -19,7 +19,7 @@ import type * as React from "react";
 export type Axis = "x" | "y";
 export type ReadingDirection = "ltr" | "rtl";
 export type SnapTarget = "start" | "center" | "end";
-export type LiveRegionPoliteness = "polite" | "assertive";
+export type LiveRegionPoliteness = "off" | "polite" | "assertive";
 
 /* -------------------------------------------------------------------------------------------------
  * Strict controllable state
@@ -152,15 +152,16 @@ export interface UseCarouselOptions<
     startDelayMs?: number;
     dwellMs?: number | ((ctx: { index: number; slideCount: number }) => number);
     speedPxPerSec?: number; // default: 600
-    resumeAfterInteraction?: boolean; // default: true
+    resumeAfterInteraction?: boolean; // default: false
     pauseWhenHidden?: boolean; // default: true
   };
 
   accessibility?: {
-    label?: string; // default: "Carousel"
+    label?: string; // default: "Featured items"
     controlsId?: string;
     live?: LiveRegionPoliteness; // default: "polite"
     announceChanges?: boolean; // default: true
+    tabIndex?: number; // default: 0
   };
 
   debug?: boolean; // default: false

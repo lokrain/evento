@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Icons } from "@/components/ui/icons";
+import { MenuIcon } from "@/components/ui/icons";
 import { LogoFlower } from "@/components/ui/logo-flower";
 import {
   NavigationMenu,
@@ -86,13 +86,16 @@ export function HeaderClient({ navItems, brand, cta, menuLabel }: HeaderClientPr
       }`}
     >
       <div className="mx-auto grid min-h-16 w-full max-w-6xl grid-cols-[auto_1fr_auto] items-center gap-4 px-6 py-3">
-        <Link href="/" className="flex items-center gap-3 justify-self-start">
+        <Link
+          href="/"
+          className="flex items-center gap-3 justify-self-start rounded-md transition-opacity motion-reduce:transition-none hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <span className="relative flex items-center justify-center">
             <span
               className="absolute inset-0 rounded-full bg-primary/20 blur-md"
               aria-hidden="true"
             />
-            <LogoFlower size="md" className="relative" />
+            <LogoFlower size="md" className="relative" aria-hidden="true" />
           </span>
           <Typography
             as="span"
@@ -148,7 +151,7 @@ export function HeaderClient({ navItems, brand, cta, menuLabel }: HeaderClientPr
                   aria-label={menuLabel ?? "Menu"}
                   onPointerDown={() => setMenuOpen(true)}
                 >
-                  <Icons.menu className="h-5 w-5" />
+                  <MenuIcon className="h-5 w-5" aria-hidden="true" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">

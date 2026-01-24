@@ -1,16 +1,18 @@
 "use client";
 
 import * as React from "react";
+
 import { buildSettleAnnouncement } from "./a11y/announce/policy";
-import { getLiveRegionProps } from "./a11y/aria/live-region-props";
 import { createCarouselA11yIds } from "./a11y/ids";
+
 import {
   buildA11yAnnounce,
   buildA11yClearAnnouncement,
   buildA11ySetLiveMode,
+  buildA11ySetAnnounceEnabled,
 } from "./actions/builders/build-a11y";
 import { buildAutoplaySetEnabled, buildGateSet } from "./actions/builders/build-autoplay";
-import { buildMotionClear, buildMotionStart } from "./actions/builders/build-motion";
+import { buildMotionClear } from "./actions/builders/build-motion";
 import {
   buildNavCommitIndex,
   buildNavRequestGoto,
@@ -18,12 +20,8 @@ import {
   buildNavRequestPrev,
 } from "./actions/builders/build-navigation";
 import { buildVirtualSetEpoch, buildVirtualSetWindow } from "./actions/builders/build-virtual";
-import { getNextButtonBindings, getPrevButtonBindings } from "./bindings/controls";
-import { getRootBindings } from "./bindings/root";
-import { getSlideBindings } from "./bindings/slide";
-import { getTrackBindings } from "./bindings/track";
-import { getViewportBindings } from "./bindings/viewport";
-import { asPx } from "./core/brands";
+
+import { asIndex, asPx } from "./core/brands";
 import type {
   AutoplayController,
   AutoplayGate,
@@ -31,24 +29,25 @@ import type {
   CarouselEngine,
   CarouselReturn,
   Controllable,
-  DataAttributes,
-  SnapTarget,
+  CommitThreshold,
+  Px,
   Uncontrolled,
   UseCarouselOptions,
 } from "./core/types";
-import type { Axis, Px } from "./core/types";
-import { attachFocusPinGate } from "./dom/gates/focus-pin";
-import { attachHoverGate } from "./dom/hover";
-import { scrollToPx } from "./dom/io/scroll-to";
+
+import { defaultCarouselPlatform } from "./carousel-platform";
+import type { CarouselPlatform } from "./carousel-platform";
+
 import { keydownToCommand } from "./dom/listeners/on-keydown";
-import { createPointerGateHandler } from "./dom/listeners/on-pointer";
 import { createScrollHandler } from "./dom/listeners/on-scroll";
-import { attachReducedMotionGate } from "./dom/reduced-motion";
 import { createRefs } from "./dom/refs/create-refs";
-import { attachVisibilityGate } from "./dom/visibility";
-import { computeAutoplayGates } from "./model/autoplay/gates";
-import { computeAutoplayPolicy } from "./model/autoplay/policy";
+
+import { useCarouselDomGates } from "./orchestrator/use-carousel-gates";
+import { useCarouselMeasure } from "./orchestrator/use-carousel-measure";
+
 import { createAutoplayTicker } from "./model/autoplay/tick";
+import { deriveAutoplay } from "./model/autoplay/wire-autoplay";
+
 import {
   clearSettled,
   createInitialSettleState,
@@ -56,23 +55,66 @@ import {
   resetSettleTracking,
   type SettleMachineState,
   sampleSettle,
-  startSettleTracking,
 } from "./model/settle/settle-machine";
 import { createRafSettleSampler } from "./model/settle/settle-raf";
 import { subscribeScrollEnd } from "./model/settle/settle-scrollend";
-import { computeVirtualWindow } from "./model/virtual/compute-window";
-import { computeVirtualSlots } from "./model/virtual/loop-keys";
+
+import { executeNav as executeNavModel } from "./model/nav/execute-nav";
+import { computeVirtualUpdate, deriveRenderSlots } from "./model/virtual/wire-virtual";
+
 import { reduceCarousel } from "./store/reducer";
 import { createCarouselFacade } from "./store/facade";
 import { selectCanNav } from "./store/selectors/select-can-nav";
 import { selectPinnedIndices } from "./store/selectors/select-window";
-import type { CarouselState, CreateInitialStateOptions } from "./store/state";
+import type { CarouselState } from "./store/state";
 import { createInitialState } from "./store/state";
+import { normalizeOptions } from "./store/normalize";
+
+import { clampIndexNumber, computeCommittedIndexFromDom } from "./dom/geometry";
+
+import { composeBindings } from "./bindings/compose-bindings";
+
+const DEFAULT_COMMIT_THRESHOLD: CommitThreshold = { kind: "snap", value: 0.5 };
+
 export function useCarousel<
   IndexC extends Controllable<number> = Uncontrolled<number>,
   PlayingC extends Controllable<boolean> = Uncontrolled<boolean>,
 >(opts: UseCarouselOptions<IndexC, PlayingC>): CarouselReturn<IndexC, PlayingC> {
+  return useCarouselWithPlatform(opts, defaultCarouselPlatform);
+}
+
+/**
+ * INTERNAL ONLY.
+ * Allows deterministic tests by injecting a platform (scroll writer).
+ */
+export function useCarouselWithPlatform<
+  IndexC extends Controllable<number> = Uncontrolled<number>,
+  PlayingC extends Controllable<boolean> = Uncontrolled<boolean>,
+>(
+  opts: UseCarouselOptions<IndexC, PlayingC>,
+  platform: CarouselPlatform,
+): CarouselReturn<IndexC, PlayingC> {
   const normalized = React.useMemo(() => normalizeOptions(opts), [opts]);
+  const baselineLiveMode = opts.accessibility?.live ?? "polite";
+  const announceChanges = opts.accessibility?.announceChanges ?? true;
+  const interactionStep = React.useMemo(() => {
+    const raw: number = opts.interaction?.step ?? 1;
+    const parsed = Number.isFinite(raw) ? Math.trunc(raw) : 1;
+    return Math.max(1, parsed);
+  }, [opts.interaction?.step]);
+  const isDraggable = opts.interaction?.draggable ?? true;
+  const observeResize = opts.measure?.observeResize ?? true;
+  const remeasureOnNextFrame = opts.measure?.remeasureOnNextFrame ?? true;
+  const resumeAfterInteraction = opts.autoplay?.resumeAfterInteraction ?? false;
+  const pauseWhenHidden = opts.autoplay?.pauseWhenHidden ?? true;
+  const commitThreshold = React.useMemo(
+    () => opts.interaction?.commitThreshold ?? DEFAULT_COMMIT_THRESHOLD,
+    [opts.interaction?.commitThreshold],
+  );
+
+  const canNavigate = !normalized.indexReadonly;
+  const canControlPlaying = !normalized.playingReadonly;
+
   // -----------------------------
   // Store (single writer)
   // -----------------------------
@@ -83,11 +125,20 @@ export function useCarousel<
   );
   const facade = React.useMemo(() => createCarouselFacade(state), [state]);
 
-  // Keep latest state in a ref for stable handlers (React 19 friendly).
+  // Keep latest state in a ref for stable event handlers.
   const stateRef = React.useRef<CarouselState>(state);
   React.useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  const externalIndexCommitRef = React.useRef<number | null>(null);
+  const lastIndexNotifiedRef = React.useRef<number>(state.index as unknown as number);
+
+  const externalPlayingCommitRef = React.useRef<boolean | null>(null);
+  const lastPlayingNotifiedRef = React.useRef<boolean>(state.autoplay.enabled);
+  const autoplayTickerRef = React.useRef<ReturnType<typeof createAutoplayTicker> | null>(null);
+  const autoplayInteractionBlockRef = React.useRef<boolean>(false);
+  const prevAutoplayEnabledRef = React.useRef<boolean>(state.autoplay.enabled);
 
   // -----------------------------
   // DOM refs (dumb plumbing)
@@ -95,21 +146,59 @@ export function useCarousel<
   const internalRefs = React.useMemo(() => createRefs(), []);
   const latestScrollPxRef = React.useRef<Px>(asPx(0));
 
-  // Settle state (owned here; no driver)
+  // Settle machine state (owned here; driven by RAF sampler).
   const settleRef = React.useRef<SettleMachineState>(createInitialSettleState());
-
-  // Local settle token (not coupled to store.motion.token to avoid async mismatch)
   const settleTokenRef = React.useRef<number>(0);
 
-  // Epoch seam tracking for loop mode
+  // Loop seam tracking for virtualization epoch bump.
   const lastSeamBucketRef = React.useRef<number>(0);
 
-  // Stable DOM ids for aria-controls
+  // Stable DOM ids for aria-controls.
   const rawId = React.useId();
   const ids = React.useMemo(() => createCarouselA11yIds(String(rawId)), [rawId]);
+  const controlsId = opts.accessibility?.controlsId ?? ids.viewport;
 
   // -----------------------------
-  // Hot path: scroll sink and handler
+  // A11y preference synchronization
+  // -----------------------------
+  React.useEffect(() => {
+    dispatch(
+      buildA11ySetAnnounceEnabled({
+        enabled: announceChanges,
+        source: "policy",
+      }),
+    );
+  }, [announceChanges, dispatch]);
+
+  // -----------------------------
+  // Controlled state sync (index + autoplay playing)
+  // -----------------------------
+  React.useEffect(() => {
+    const indexConfig = opts.index;
+    if (!indexConfig || indexConfig.mode !== "controlled") return;
+
+    const next = clampIndexNumber(indexConfig.value, state.slideCount, state.loop);
+    const current = stateRef.current.index as unknown as number;
+    if (current === next) return;
+
+    externalIndexCommitRef.current = next;
+    dispatch(buildNavCommitIndex({ index: next, source: "external" }));
+  }, [dispatch, opts.index, state.loop, state.slideCount]);
+
+  React.useEffect(() => {
+    const playingConfig = opts.autoplay?.playing;
+    if (!playingConfig || playingConfig.mode !== "controlled") return;
+
+    const next = Boolean(playingConfig.value);
+    const current = stateRef.current.autoplay.enabled;
+    if (current === next) return;
+
+    externalPlayingCommitRef.current = next;
+    dispatch(buildAutoplaySetEnabled({ enabled: next, source: "api" }));
+  }, [dispatch, opts.autoplay?.playing]);
+
+  // -----------------------------
+  // Hot path: scroll sink + scroll listener
   // -----------------------------
   const scrollSink = React.useMemo(
     () => ({
@@ -120,7 +209,6 @@ export function useCarousel<
     [],
   );
 
-  // Attach scroll listener when viewport is available.
   React.useEffect(() => {
     const viewport = internalRefs.state.viewport;
     if (!viewport) return;
@@ -135,15 +223,72 @@ export function useCarousel<
     return () => viewport.removeEventListener("scroll", onScroll);
   }, [internalRefs, scrollSink]);
 
+  const collectSlidesForCommit = React.useCallback(() => {
+    const viewport = internalRefs.state.viewport;
+    if (!viewport) return internalRefs.state.slides;
+
+    const nodes = viewport.querySelectorAll<HTMLElement>("[data-carousel-slide-index]");
+    if (nodes.length === 0) return internalRefs.state.slides;
+
+    const map = new Map<number, HTMLElement | null>();
+    for (const node of nodes) {
+      const raw = node.dataset.carouselSlideIndex;
+      if (!raw) continue;
+      const value = Number(raw);
+      if (!Number.isFinite(value)) continue;
+      map.set(Math.trunc(value), node);
+    }
+    return map;
+  }, [internalRefs]);
+
+  // Debug-only: commit index on scroll end to keep engine index in sync for tests.
+  React.useEffect(() => {
+    if (!opts.debug) return;
+    const viewport = internalRefs.state.viewport;
+    if (!viewport) return;
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
+      timeoutId = globalThis.setTimeout(() => {
+        timeoutId = null;
+        const s = stateRef.current;
+        const committed = computeCommittedIndexFromDom({
+          axis: s.axis,
+          align: normalized.align,
+          viewport: internalRefs.state.viewport,
+          slides: collectSlidesForCommit(),
+          slideCount: s.slideCount,
+          loop: s.loop,
+          fallbackIndex: s.index as unknown as number,
+          commitThreshold,
+        });
+
+        dispatch(buildNavCommitIndex({ index: committed, source: "external" }));
+      }, 120);
+    };
+
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
+      viewport.removeEventListener("scroll", onScroll);
+    };
+  }, [collectSlidesForCommit, commitThreshold, dispatch, internalRefs, normalized.align, opts.debug]);
+
   // -----------------------------
   // RAF settle sampler (stable)
   // -----------------------------
   const rafSampler = React.useMemo(() => {
     return createRafSettleSampler({
       shouldContinue: () =>
-        settleRef.current.pendingToken !== null && settleRef.current.settledToken === null,
+        settleRef.current.pendingToken !== null &&
+        settleRef.current.settledToken === null,
       onFrame: () => {
-        // Boundary: sample settle (not hot-path scroll event)
+        // Boundary: sample settle (not the hot-path scroll event)
         const px = latestScrollPxRef.current as unknown as number;
         settleRef.current = sampleSettle(settleRef.current, px);
 
@@ -157,10 +302,11 @@ export function useCarousel<
           axis: s.axis,
           align: normalized.align,
           viewport: internalRefs.state.viewport,
-          slides: internalRefs.state.slides,
+          slides: collectSlidesForCommit(),
           slideCount: s.slideCount,
           loop: s.loop,
           fallbackIndex: s.index as unknown as number,
+          commitThreshold,
         });
 
         dispatch(buildNavCommitIndex({ index: committed, source: "settle" }));
@@ -174,16 +320,32 @@ export function useCarousel<
         });
 
         if (announcement) {
+          if (opts.debug) {
+            const prev =
+              (globalThis as unknown as { __carouselDebug?: { lastAnnouncement?: string | null } })
+                .__carouselDebug ?? {};
+            (globalThis as unknown as { __carouselDebug?: typeof prev & { lastAnnouncement?: string } })
+              .__carouselDebug = { ...prev, lastAnnouncement: announcement };
+          }
           dispatch(buildA11yAnnounce({ text: announcement, source: "policy" }));
         }
+
         dispatch(buildMotionClear("reset"));
 
         settleRef.current = clearSettled(settleRef.current);
       },
     });
-  }, [internalRefs.state.slides, internalRefs.state.viewport, normalized.align]);
+  }, [
+    collectSlidesForCommit,
+    commitThreshold,
+    dispatch,
+    internalRefs.state.slides,
+    internalRefs.state.viewport,
+    normalized.align,
+    opts.debug,
+  ]);
 
-  // scrollend fast-path: notify + ensure RAF is running (single place commits).
+  // scrollend fast-path: notify + ensure RAF is running.
   React.useEffect(() => {
     const viewport = internalRefs.state.viewport;
     if (!viewport) return;
@@ -197,61 +359,7 @@ export function useCarousel<
   }, [internalRefs, rafSampler]);
 
   // -----------------------------
-  // Focus pin gate wiring (virtualization correctness)
-  // -----------------------------
-  React.useEffect(() => {
-    const root = internalRefs.state.root;
-    if (!root) return;
-
-    const detach = attachFocusPinGate({
-      root,
-      dispatch,
-      slideIndexFromTarget: (target) => extractSlideIndexFromDomTarget(target),
-    });
-
-    return () => detach();
-  }, [internalRefs]);
-
-  // -----------------------------
-  // Hover + visibility + reduced motion gates
-  // -----------------------------
-  React.useEffect(() => {
-    const root = internalRefs.state.root;
-    if (!root) return;
-
-    const detachHover = attachHoverGate({ root, dispatch });
-    const detachVisibility = attachVisibilityGate({ dispatch });
-    const detachReduced = attachReducedMotionGate({ dispatch });
-
-    return () => {
-      detachHover();
-      detachVisibility();
-      detachReduced();
-    };
-  }, [internalRefs]);
-
-  // -----------------------------
-  // Pointer gate wiring (dragging)
-  // -----------------------------
-  React.useEffect(() => {
-    const root = internalRefs.state.root;
-    if (!root) return;
-
-    const handler = createPointerGateHandler({ dispatch });
-
-    root.addEventListener("pointerdown", handler, { passive: true });
-    root.addEventListener("pointerup", handler, { passive: true });
-    root.addEventListener("pointercancel", handler, { passive: true });
-
-    return () => {
-      root.removeEventListener("pointerdown", handler);
-      root.removeEventListener("pointerup", handler);
-      root.removeEventListener("pointercancel", handler);
-    };
-  }, [internalRefs]);
-
-  // -----------------------------
-  // Navigation executor (stable, uses refs)
+  // Navigation executor (delegated to model)
   // -----------------------------
   const executeNav = React.useCallback(
     (params: {
@@ -260,51 +368,186 @@ export function useCarousel<
       readonly source: "api" | "keyboard" | "button" | "autoplay";
     }) => {
       const s = stateRef.current;
-      const viewport = internalRefs.state.viewport;
-      if (!viewport) return;
 
-      const count = s.slideCount;
-      if (count <= 0) return;
+      executeNavModel(
+        { kind: params.kind, index: params.index, source: params.source },
+        {
+          platform,
+          dispatch,
 
-      const current = s.index as unknown as number;
-      const targetIdx =
-        params.kind === "goto"
-          ? clampIndexNumber(params.index ?? 0, count, s.loop)
-          : params.kind === "next"
-            ? clampIndexNumber(current + 1, count, s.loop)
-            : clampIndexNumber(current - 1, count, s.loop);
+          viewport: internalRefs.state.viewport,
+          slides: internalRefs.state.slides,
 
-      // Compute target px from DOM at boundary.
-      const targetPx = computeScrollTargetPxFromDom({
-        axis: s.axis,
-        align: normalized.align,
-        viewport,
-        slideEl: internalRefs.state.slides.get(targetIdx) ?? null,
-      });
+          axis: s.axis,
+          align: normalized.align,
 
-      const reduced = s.gates.reducedMotion;
-      const behavior: ScrollBehavior = reduced || !normalized.smoothScroll ? "auto" : "smooth";
+          loop: s.loop,
+          slideCount: s.slideCount,
 
-      // Mark motion
-      dispatch(buildMotionStart({ isAnimating: behavior === "smooth", reason: "nav" }));
+          currentIndex: s.index as unknown as number,
 
-      // Arm settle machine
-      settleTokenRef.current += 1;
-      const token = settleTokenRef.current;
+          reducedMotion: s.gates.reducedMotion,
+          smoothScrollEnabled: normalized.smoothScroll,
 
-      settleRef.current = startSettleTracking(
-        settleRef.current,
-        token,
-        latestScrollPxRef.current as unknown as number,
+          latestScrollPx: latestScrollPxRef.current,
+
+          settle: settleRef.current,
+          settleToken: settleTokenRef.current,
+          setSettle: (next) => {
+            settleRef.current = next;
+          },
+          setSettleToken: (next) => {
+            settleTokenRef.current = next;
+          },
+
+          startRafSampler: () => {
+            rafSampler.start();
+          },
+        },
       );
 
-      // Scroll (single writer for DOM scroll)
-      scrollToPx({ viewport, axis: s.axis, px: targetPx, options: { behavior } });
-
-      // Ensure settle sampling runs until resolved
-      rafSampler.start();
+      const viewport = internalRefs.state.viewport;
+      if (viewport) {
+        const raw = s.axis === "x" ? viewport.scrollLeft : viewport.scrollTop;
+        if (Number.isFinite(raw)) {
+          latestScrollPxRef.current = asPx(raw);
+        }
+      }
     },
-    [internalRefs, normalized.align, normalized.smoothScroll, rafSampler],
+    [dispatch, internalRefs, normalized.align, normalized.smoothScroll, platform, rafSampler],
+  );
+
+  const maybeStopAutoplayAfterInteraction = React.useCallback(() => {
+    if (resumeAfterInteraction) return;
+    if (!canControlPlaying) return;
+    autoplayInteractionBlockRef.current = true;
+    if (stateRef.current.autoplay.enabled) {
+      dispatch(buildAutoplaySetEnabled({ enabled: false, source: "policy" }));
+    }
+    autoplayTickerRef.current?.stop();
+  }, [canControlPlaying, dispatch, resumeAfterInteraction]);
+
+  // -----------------------------
+  // DOM gates (focus, hover, visibility, reduced motion, dragging)
+  // -----------------------------
+  useCarouselDomGates({
+    internalRefs,
+    dispatch,
+    isDraggable,
+    pauseWhenHidden,
+    onPointerDown: maybeStopAutoplayAfterInteraction,
+    onFocusWithinStart: maybeStopAutoplayAfterInteraction,
+  });
+
+  // -----------------------------
+  // Pointer dragging (mouse/touch)
+  // -----------------------------
+  React.useEffect(() => {
+    const viewport = internalRefs.state.viewport;
+    if (!viewport) return;
+    if (!isDraggable) return;
+
+    let activePointerId: number | null = null;
+    let startPoint = 0;
+    let startScroll = 0;
+    let dragging = false;
+
+    const thresholdPx = 4;
+
+    const getPoint = (event: PointerEvent) =>
+      stateRef.current.axis === "x" ? event.clientX : event.clientY;
+
+    const onPointer = (event: PointerEvent) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
+      if (event.type === "pointerdown") {
+        activePointerId = event.pointerId;
+        dragging = false;
+        startPoint = getPoint(event);
+        startScroll =
+          stateRef.current.axis === "x" ? viewport.scrollLeft : viewport.scrollTop;
+        viewport.setPointerCapture?.(event.pointerId);
+        return;
+      }
+
+      if (activePointerId === null || event.pointerId !== activePointerId) return;
+
+      if (event.type === "pointermove") {
+        const current = getPoint(event);
+        const total = current - startPoint;
+
+        if (!dragging && Math.abs(total) < thresholdPx) {
+          return;
+        }
+
+        dragging = true;
+        const next = startScroll - total;
+
+        if (stateRef.current.axis === "x") {
+          viewport.scrollLeft = next;
+        } else {
+          viewport.scrollTop = next;
+        }
+
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        return;
+      }
+
+      if (event.type === "pointerup" || event.type === "pointercancel") {
+        activePointerId = null;
+        dragging = false;
+        viewport.releasePointerCapture?.(event.pointerId);
+      }
+    };
+
+    viewport.addEventListener("pointerdown", onPointer);
+    viewport.addEventListener("pointermove", onPointer, { passive: false });
+    viewport.addEventListener("pointerup", onPointer);
+    viewport.addEventListener("pointercancel", onPointer);
+
+    return () => {
+      viewport.removeEventListener("pointerdown", onPointer);
+      viewport.removeEventListener("pointermove", onPointer);
+      viewport.removeEventListener("pointerup", onPointer);
+      viewport.removeEventListener("pointercancel", onPointer);
+    };
+  }, [internalRefs, isDraggable]);
+
+  // -----------------------------
+  // Measurement wiring (viewport + slides)
+  // -----------------------------
+  useCarouselMeasure({
+    internalRefs,
+    stateRef,
+    dispatch,
+    slideCount: state.slideCount,
+    observeResize,
+    remeasureOnNextFrame,
+  });
+
+  const navigateByStep = React.useCallback(
+    (direction: "next" | "prev", source: "api" | "keyboard" | "button") => {
+      if (interactionStep <= 1) {
+        if (direction === "prev") {
+          dispatch(buildNavRequestPrev(source));
+          executeNav({ kind: "prev", source });
+        } else {
+          dispatch(buildNavRequestNext(source));
+          executeNav({ kind: "next", source });
+        }
+        return;
+      }
+
+      const s = stateRef.current;
+      const delta = direction === "next" ? interactionStep : -interactionStep;
+      const target = clampIndexNumber((s.index as unknown as number) + delta, s.slideCount, s.loop);
+
+      dispatch(buildNavRequestGoto(target, source));
+      executeNav({ kind: "goto", index: target, source });
+    },
+    [dispatch, executeNav, interactionStep],
   );
 
   // -----------------------------
@@ -327,202 +570,21 @@ export function useCarousel<
       if (cmd === "next" && !can.canNext) return;
 
       e.preventDefault();
-
-      if (cmd === "prev") {
-        dispatch(buildNavRequestPrev("keyboard"));
-        executeNav({ kind: "prev", source: "keyboard" });
-      } else {
-        dispatch(buildNavRequestNext("keyboard"));
-        executeNav({ kind: "next", source: "keyboard" });
-      }
+      maybeStopAutoplayAfterInteraction();
+      navigateByStep(cmd, "keyboard");
     };
 
     root.addEventListener("keydown", handler, keydownOptions);
     return () => root.removeEventListener("keydown", handler, keydownOptions);
-  }, [internalRefs, executeNav]);
+  }, [internalRefs, maybeStopAutoplayAfterInteraction, navigateByStep]);
 
   // -----------------------------
-  // Autoplay ticker (stable, Strict Mode safe)
+  // Autoplay derivation (single source of truth)
   // -----------------------------
-  const autoplayTicker = React.useMemo(() => {
-    return createAutoplayTicker(() => {
-      const s = stateRef.current;
-      const can = selectCanNav(s);
-      if (!can.canNext) return;
-
-      dispatch(buildNavRequestNext("autoplay"));
-      executeNav({ kind: "next", source: "autoplay" });
-    });
-  }, [executeNav]);
-
-  // Autoplay boundary effect: gates + policy -> start/stop ticker + a11y live mode
-  React.useEffect(() => {
-    const s = state;
-
-    const gates = computeAutoplayGates({
-      enabled: s.autoplay.enabled,
-      intervalMs: s.autoplay.intervalMs as unknown as number,
-      slideCount: s.slideCount,
-      gates: {
-        manualPause: s.gates.manualPause,
-        hover: s.gates.hover,
-        focusWithin: s.gates.focusWithin,
-        visibilityHidden: s.gates.visibilityHidden,
-        dragging: s.gates.dragging,
-        reducedMotion: s.gates.reducedMotion,
-      },
-    });
-
-    const plan = computeAutoplayPolicy({
-      gates,
-      announceEnabled: s.a11y.announceEnabled,
-      baselineLiveMode: "polite",
-    });
-
-    dispatch(buildA11ySetLiveMode({ mode: plan.desiredLiveMode, source: "policy" }));
-
-    if (plan.shouldRun) {
-      autoplayTicker.start(s.autoplay.intervalMs as unknown as number);
-    } else {
-      autoplayTicker.stop();
-    }
-
-    return () => {
-      autoplayTicker.stop();
-    };
-  }, [autoplayTicker, state]);
-
-  // -----------------------------
-  // Virtualization: compute window on boundaries (not on scroll)
-  // -----------------------------
-  React.useEffect(() => {
-    const s = state;
-
-    const pinned = selectPinnedIndices(s);
-    const res = computeVirtualWindow({
-      slideCount: s.slideCount,
-      loop: s.loop,
-      index: s.index,
-      windowSize: s.virtual.windowSize,
-      overscan: s.virtual.overscan,
-      pinned,
-    });
-
-    dispatch(buildVirtualSetWindow(res.window));
-
-    if (s.loop) {
-      const prevBucket = lastSeamBucketRef.current;
-      if (res.seamBucket !== prevBucket) {
-        lastSeamBucketRef.current = res.seamBucket;
-        dispatch(buildVirtualSetEpoch(s.virtual.epoch + 1, "loop-seam"));
-      }
-    } else {
-      lastSeamBucketRef.current = 0;
-    }
-  }, [state]);
-
-  // -----------------------------
-  // Derived virtual slots for rendering
-  // -----------------------------
-  const window = facade.virtualWindow;
-  const epoch = facade.virtualEpoch;
-
-  const renderSlots = React.useMemo(() => {
-    if (!window) return [];
-    const items = computeVirtualSlots({
-      window,
-      slideCount: state.slideCount,
-      loop: state.loop,
-      epoch,
-    });
-    return items.map((x) => ({ key: x.key, logicalIndex: x.logicalIndex }));
-  }, [epoch, state.loop, state.slideCount, window]);
-
-  // -----------------------------
-  // A11y live region props
-  // -----------------------------
-  const liveMode = facade.liveMode;
-  const announceEnabled = facade.announceEnabled;
-  const announcement = announceEnabled ? facade.lastAnnouncement : null;
-
-  // Optional: clear announcement after paint to avoid repeats on rerender.
-  React.useEffect(() => {
-    if (announcement === null) return;
-    const id = globalThis.setTimeout(() => {
-      dispatch(buildA11yClearAnnouncement("policy"));
-    }, 0);
-    return () => {
-      globalThis.clearTimeout(id);
-    };
-  }, [announcement]);
-
-  // Reset settle on unmount
-  React.useEffect(() => {
-    return () => {
-      settleRef.current = resetSettleTracking(settleRef.current);
-      rafSampler.stop();
-      autoplayTicker.stop();
-    };
-  }, [autoplayTicker, rafSampler]);
-
-  // -----------------------------
-  // Bindings (clean consumer API)
-  // -----------------------------
-  const can = facade.canNav;
-
-  const rootRef = React.useMemo(() => internalRefs.root, [internalRefs]);
-  const viewportRef = React.useMemo(() => internalRefs.viewport, [internalRefs]);
-  const trackRef = React.useMemo(() => internalRefs.track, [internalRefs]);
-
-  const renderCount = renderSlots.length > 0 ? renderSlots.length : state.slideCount;
-  const getSlotForRenderIndex = React.useCallback(
-    (renderIndex: number) =>
-      renderSlots[renderIndex] ?? {
-        key: `fallback-${renderIndex}`,
-        logicalIndex: clampIndexNumber(renderIndex, state.slideCount, state.loop),
-      },
-    [renderSlots, state.loop, state.slideCount],
-  );
-
-  const canNavigate = !normalized.indexReadonly;
-  const canControlPlaying = !normalized.playingReadonly;
-
-  const handlePrev = React.useCallback(
-    (event?: React.MouseEvent<HTMLButtonElement>) => {
-      if (event?.defaultPrevented) return;
-      if (!can.canPrev) return;
-      if (!canNavigate) return;
-      dispatch(buildNavRequestPrev("button"));
-      executeNav({ kind: "prev", source: "button" });
-    },
-    [can.canPrev, canNavigate, executeNav],
-  );
-
-  const handleNext = React.useCallback(
-    (event?: React.MouseEvent<HTMLButtonElement>) => {
-      if (event?.defaultPrevented) return;
-      if (!can.canNext) return;
-      if (!canNavigate) return;
-      dispatch(buildNavRequestNext("button"));
-      executeNav({ kind: "next", source: "button" });
-    },
-    [can.canNext, canNavigate, executeNav],
-  );
-
-  const handleGoTo = React.useCallback(
-    (index: number, event?: React.MouseEvent<HTMLButtonElement>) => {
-      if (event?.defaultPrevented) return;
-      if (!canNavigate) return;
-      dispatch(buildNavRequestGoto(index, "button"));
-      executeNav({ kind: "goto", index, source: "button" });
-    },
-    [canNavigate, executeNav],
-  );
-
-  const autoplaySnapshot = React.useMemo(() => {
-    const gates = computeAutoplayGates({
-      enabled: state.autoplay.enabled,
-      intervalMs: state.autoplay.intervalMs as unknown as number,
+  const autoplayDerived = React.useMemo(() => {
+    return deriveAutoplay({
+      autoplayEnabled: state.autoplay.enabled,
+      autoplayIntervalMs: state.autoplay.intervalMs as unknown as number,
       slideCount: state.slideCount,
       gates: {
         manualPause: state.gates.manualPause,
@@ -532,16 +594,294 @@ export function useCarousel<
         dragging: state.gates.dragging,
         reducedMotion: state.gates.reducedMotion,
       },
-    });
-
-    const plan = computeAutoplayPolicy({
-      gates,
       announceEnabled: state.a11y.announceEnabled,
-      baselineLiveMode: "polite",
+      baselineLiveMode,
+    });
+  }, [
+    state.a11y.announceEnabled,
+    state.autoplay.enabled,
+    state.autoplay.intervalMs,
+    state.gates.dragging,
+    state.gates.focusWithin,
+    state.gates.hover,
+    state.gates.manualPause,
+    state.gates.reducedMotion,
+    state.gates.visibilityHidden,
+    state.slideCount,
+    baselineLiveMode,
+  ]);
+
+  // -----------------------------
+  // External change notifications (index + autoplay playing)
+  // -----------------------------
+  React.useEffect(() => {
+    const next = state.index as unknown as number;
+    if (lastIndexNotifiedRef.current === next) return;
+    lastIndexNotifiedRef.current = next;
+
+    if (externalIndexCommitRef.current === next) {
+      externalIndexCommitRef.current = null;
+      return;
+    }
+
+    const indexConfig = opts.index;
+    if (indexConfig) {
+      if (indexConfig.mode === "controlled") {
+        if ("onChange" in indexConfig) {
+          indexConfig.onChange?.(next);
+        }
+      } else {
+        indexConfig.onChange?.(next);
+      }
+    }
+
+    opts.onIndexChange?.(next);
+    opts.onSettle?.(next);
+  }, [opts.index, opts.onIndexChange, opts.onSettle, state.index]);
+
+  React.useEffect(() => {
+    const next = state.autoplay.enabled;
+    if (lastPlayingNotifiedRef.current === next) return;
+    lastPlayingNotifiedRef.current = next;
+
+    if (externalPlayingCommitRef.current === next) {
+      externalPlayingCommitRef.current = null;
+      return;
+    }
+
+    const playingConfig = opts.autoplay?.playing;
+    if (playingConfig) {
+      if (playingConfig.mode === "controlled") {
+        if ("onChange" in playingConfig) {
+          playingConfig.onChange?.(next);
+        }
+      } else {
+        playingConfig.onChange?.(next);
+      }
+    }
+  }, [opts.autoplay?.playing, state.autoplay.enabled]);
+
+  // -----------------------------
+  // Debug diagnostics (test-only)
+  // -----------------------------
+  React.useEffect(() => {
+    if (!opts.debug) return;
+
+    const win = state.virtual.window;
+    const prev = (globalThis as unknown as {
+      __carouselDebug?: { lastAnnouncement?: string | null; commitIndex?: (index: number) => void };
+    }).__carouselDebug;
+    const debug = {
+      index: state.index as unknown as number,
+      pinned: Array.from(state.virtual.pinned),
+      lastAnnouncement: state.a11y.lastAnnouncement ?? prev?.lastAnnouncement ?? null,
+      liveMode: state.a11y.liveMode,
+      commitIndex: (index: number) => {
+        dispatch(buildNavCommitIndex({ index, source: "external" }));
+      },
+      window: win
+        ? {
+            start: win.start as unknown as number,
+            end: win.end as unknown as number,
+            size: win.size as unknown as number,
+          }
+        : null,
+    };
+
+    (globalThis as unknown as { __carouselDebug?: typeof debug }).__carouselDebug = debug;
+  }, [opts.debug, state.index, state.virtual.pinned, state.virtual.window]);
+
+  // -----------------------------
+  // Autoplay ticker (stable, Strict Mode safe)
+  // -----------------------------
+  const autoplayTicker = React.useMemo(() => {
+    return createAutoplayTicker(() => {
+      const s = stateRef.current;
+      if (!resumeAfterInteraction && autoplayInteractionBlockRef.current) return;
+      if (!s.autoplay.enabled) return;
+      if (s.slideCount <= 1) return;
+      if (s.gates.manualPause) return;
+      if (s.gates.hover) return;
+      if (s.gates.focusWithin) return;
+      if (s.gates.visibilityHidden) return;
+      if (s.gates.dragging) return;
+      if (s.gates.reducedMotion) return;
+      const can = selectCanNav(s);
+      if (!can.canNext) return;
+
+      dispatch(buildNavRequestNext("autoplay"));
+      executeNav({ kind: "next", source: "autoplay" });
+    });
+  }, [dispatch, executeNav, resumeAfterInteraction]);
+  autoplayTickerRef.current = autoplayTicker;
+
+  React.useEffect(() => {
+    return () => {
+      autoplayTicker.stop();
+    };
+  }, [autoplayTicker]);
+
+  React.useEffect(() => {
+    if (resumeAfterInteraction) {
+      autoplayInteractionBlockRef.current = false;
+    }
+  }, [resumeAfterInteraction]);
+
+  React.useEffect(() => {
+    const prev = prevAutoplayEnabledRef.current;
+    if (!prev && state.autoplay.enabled) {
+      autoplayInteractionBlockRef.current = false;
+    }
+    prevAutoplayEnabledRef.current = state.autoplay.enabled;
+  }, [state.autoplay.enabled]);
+
+  // Autoplay boundary effect: policy -> start/stop ticker + a11y live mode.
+  React.useEffect(() => {
+    dispatch(
+      buildA11ySetLiveMode({
+        mode: autoplayDerived.plan.desiredLiveMode,
+        source: "policy",
+      }),
+    );
+
+    if (autoplayDerived.plan.shouldRun) {
+      autoplayTicker.start(state.autoplay.intervalMs as unknown as number);
+    } else {
+      autoplayTicker.stop();
+    }
+
+    return () => {
+      autoplayTicker.stop();
+    };
+  }, [
+    autoplayDerived.plan.desiredLiveMode,
+    autoplayDerived.plan.shouldRun,
+    autoplayTicker,
+    dispatch,
+    state.autoplay.intervalMs,
+  ]);
+
+  // -----------------------------
+  // Virtualization: compute window on boundaries (not on scroll)
+  // -----------------------------
+  React.useEffect(() => {
+    const pinned = selectPinnedIndices(state);
+
+    const upd = computeVirtualUpdate({
+      slideCount: state.slideCount,
+      loop: state.loop,
+      index: asIndex(state.index as unknown as number),
+      windowSize: state.virtual.windowSize,
+      overscan: state.virtual.overscan,
+      pinned,
+      prevEpoch: state.virtual.epoch,
+      prevSeamBucket: lastSeamBucketRef.current,
     });
 
-    return { gates, plan };
-  }, [state]);
+    // Always persist seam bucket ref (contract: keep ref consistent).
+    lastSeamBucketRef.current = upd.nextSeamBucket;
+
+    dispatch(buildVirtualSetWindow(upd.window));
+    if (upd.nextEpoch !== null) {
+      dispatch(buildVirtualSetEpoch(upd.nextEpoch, "loop-seam"));
+    }
+  }, [dispatch, state]);
+
+  // -----------------------------
+  // Derived virtual slots for rendering
+  // -----------------------------
+  const window = facade.virtualWindow;
+  const epoch = facade.virtualEpoch;
+
+  const renderSlots = React.useMemo(() => {
+    if (!window) return [];
+    return deriveRenderSlots({
+      window,
+      slideCount: state.slideCount,
+      loop: state.loop,
+      epoch,
+    });
+  }, [epoch, state.loop, state.slideCount, window]);
+
+  // -----------------------------
+  // A11y live region + announcement
+  // -----------------------------
+  const liveMode = facade.liveMode;
+  const announceEnabled = facade.announceEnabled;
+  const announcement = announceEnabled ? facade.lastAnnouncement : null;
+
+  React.useEffect(() => {
+    if (announcement === null) return;
+    const delay = opts.debug ? 50 : 0;
+    const id = globalThis.setTimeout(() => {
+      dispatch(buildA11yClearAnnouncement("policy"));
+    }, delay);
+    return () => {
+      globalThis.clearTimeout(id);
+    };
+  }, [announcement, dispatch, opts.debug]);
+
+  // Cleanup on unmount.
+  React.useEffect(() => {
+    return () => {
+      settleRef.current = resetSettleTracking(settleRef.current);
+      rafSampler.stop();
+      autoplayTicker.stop();
+    };
+  }, [autoplayTicker, rafSampler]);
+
+  // -----------------------------
+  // Bindings (composed consumer API)
+  // -----------------------------
+  const can = facade.canNav;
+
+  const rootRef = React.useMemo(() => internalRefs.root, [internalRefs]);
+  const viewportRef = React.useMemo(() => internalRefs.viewport, [internalRefs]);
+  const trackRef = React.useMemo(() => internalRefs.track, [internalRefs]);
+
+  const renderCount = renderSlots.length > 0 ? renderSlots.length : state.slideCount;
+
+  const logicalIndexFromRenderIndex = React.useCallback(
+    (renderIndex: number) =>
+      (renderSlots[renderIndex] ?? {
+        key: `fallback-${renderIndex}`,
+        logicalIndex: clampIndexNumber(renderIndex, state.slideCount, state.loop),
+      }).logicalIndex,
+    [renderSlots, state.loop, state.slideCount],
+  );
+
+  const handlePrev = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (event.defaultPrevented) return;
+      if (!can.canPrev) return;
+      if (!canNavigate) return;
+      maybeStopAutoplayAfterInteraction();
+      navigateByStep("prev", "button");
+    },
+    [can.canPrev, canNavigate, maybeStopAutoplayAfterInteraction, navigateByStep],
+  );
+
+  const handleNext = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (event.defaultPrevented) return;
+      if (!can.canNext) return;
+      if (!canNavigate) return;
+      maybeStopAutoplayAfterInteraction();
+      navigateByStep("next", "button");
+    },
+    [can.canNext, canNavigate, maybeStopAutoplayAfterInteraction, navigateByStep],
+  );
+
+  const handleGoTo = React.useCallback(
+    (toIndex: number, event: React.MouseEvent<HTMLButtonElement>) => {
+      if (event.defaultPrevented) return;
+      if (!canNavigate) return;
+      maybeStopAutoplayAfterInteraction();
+      dispatch(buildNavRequestGoto(toIndex, "button"));
+      executeNav({ kind: "goto", index: toIndex, source: "button" });
+    },
+    [canNavigate, dispatch, executeNav, maybeStopAutoplayAfterInteraction],
+  );
 
   const autoplayController: AutoplayController<PlayingC> = React.useMemo(() => {
     const getGates = (): Readonly<Record<AutoplayGate, boolean>> => ({
@@ -559,34 +899,43 @@ export function useCarousel<
 
     const play = canControlPlaying
       ? () => {
-          dispatch(buildAutoplaySetEnabled({ enabled: true, source: "api" }));
-        }
+        dispatch(buildAutoplaySetEnabled({ enabled: true, source: "api" }));
+      }
       : (undefined as never);
 
     const pause = canControlPlaying
       ? () => {
-          dispatch(buildAutoplaySetEnabled({ enabled: false, source: "api" }));
-        }
+        dispatch(buildAutoplaySetEnabled({ enabled: false, source: "api" }));
+      }
       : (undefined as never);
 
     const toggle = canControlPlaying
       ? () => {
-          dispatch(
-            buildAutoplaySetEnabled({ enabled: !state.autoplay.enabled, source: "api" }),
-          );
-        }
+        dispatch(
+          buildAutoplaySetEnabled({
+            enabled: !state.autoplay.enabled,
+            source: "api",
+          }),
+        );
+      }
       : (undefined as never);
 
     return {
       enabled: state.autoplay.enabled,
-      isPlaying: autoplaySnapshot.plan.shouldRun,
+      isPlaying: autoplayDerived.plan.shouldRun,
       setGate,
       getGates,
       play,
       pause,
       toggle,
     } as AutoplayController<PlayingC>;
-  }, [autoplaySnapshot.plan.shouldRun, canControlPlaying, state.autoplay.enabled, state.gates]);
+  }, [
+    autoplayDerived.plan.shouldRun,
+    canControlPlaying,
+    dispatch,
+    state.autoplay.enabled,
+    state.gates,
+  ]);
 
   const engine: CarouselEngine<IndexC, PlayingC> = React.useMemo(
     () => ({
@@ -596,7 +945,7 @@ export function useCarousel<
       isAnimating: state.motion.isAnimating,
       renderCount,
       realIndexFromRenderIndex: (renderIndex: number) =>
-        getSlotForRenderIndex(renderIndex).logicalIndex,
+        logicalIndexFromRenderIndex(renderIndex),
       refs: {
         root: internalRefs.root,
         viewport: internalRefs.viewport,
@@ -604,25 +953,29 @@ export function useCarousel<
         slide: internalRefs.slide,
       },
       autoplay: autoplayController,
+
       goTo: (canNavigate
-        ? (index: number, _opts?: { transitionDurationMs?: number }) => {
-            dispatch(buildNavRequestGoto(index, "api"));
-            executeNav({ kind: "goto", index, source: "api" });
-          }
+        ? (toIndex: number, _opts?: { transitionDurationMs?: number }) => {
+          maybeStopAutoplayAfterInteraction();
+          dispatch(buildNavRequestGoto(toIndex, "api"));
+          executeNav({ kind: "goto", index: toIndex, source: "api" });
+        }
         : (undefined as never)) as CarouselEngine<IndexC, PlayingC>["goTo"],
+
       next: (canNavigate
         ? (_opts?: { transitionDurationMs?: number }) => {
-            if (!can.canNext) return;
-            dispatch(buildNavRequestNext("api"));
-            executeNav({ kind: "next", source: "api" });
-          }
+          if (!can.canNext) return;
+          maybeStopAutoplayAfterInteraction();
+          navigateByStep("next", "api");
+        }
         : (undefined as never)) as CarouselEngine<IndexC, PlayingC>["next"],
+
       prev: (canNavigate
         ? (_opts?: { transitionDurationMs?: number }) => {
-            if (!can.canPrev) return;
-            dispatch(buildNavRequestPrev("api"));
-            executeNav({ kind: "prev", source: "api" });
-          }
+          if (!can.canPrev) return;
+          maybeStopAutoplayAfterInteraction();
+          navigateByStep("prev", "api");
+        }
         : (undefined as never)) as CarouselEngine<IndexC, PlayingC>["prev"],
     }),
     [
@@ -630,12 +983,15 @@ export function useCarousel<
       can.canNext,
       can.canPrev,
       canNavigate,
+      dispatch,
       executeNav,
-      getSlotForRenderIndex,
       internalRefs.root,
       internalRefs.slide,
       internalRefs.track,
       internalRefs.viewport,
+      logicalIndexFromRenderIndex,
+      maybeStopAutoplayAfterInteraction,
+      navigateByStep,
       renderCount,
       state.index,
       state.isDragging,
@@ -645,379 +1001,75 @@ export function useCarousel<
   );
 
   const bindings: CarouselBindings = React.useMemo(() => {
-    const getRootProps = <P extends React.ComponentPropsWithRef<"div"> & DataAttributes>(
-      user?: P,
-    ) =>
-      getRootBindings(
-        { label: normalized.label, ref: rootRef, id: ids.root },
-        user as React.HTMLAttributes<HTMLElement> & DataAttributes,
-      ) as unknown as P;
-
-    const getViewportProps = <P extends React.ComponentPropsWithRef<"div"> & DataAttributes>(
-      user?: P,
-    ) =>
-      getViewportBindings(
-        { ref: viewportRef },
-        { ...(user ?? {}), id: ids.viewport } as React.HTMLAttributes<HTMLElement> & DataAttributes,
-      ) as unknown as P;
-
-    const getTrackProps = <P extends React.ComponentPropsWithRef<"div"> & DataAttributes>(
-      user?: P,
-    ) =>
-      getTrackBindings(
-        { ref: trackRef },
-        { ...(user ?? {}), id: ids.track } as React.HTMLAttributes<HTMLElement> & DataAttributes,
-      ) as unknown as P;
-
-    const getSlideProps = <P extends React.ComponentPropsWithRef<"div"> & DataAttributes>(
-      renderIndex: number,
-      user?: P,
-    ) => {
-      const slot = getSlotForRenderIndex(renderIndex);
-      return getSlideBindings(
-        {
-          index: slot.logicalIndex,
-          total: state.slideCount,
-          ref: internalRefs.slide(slot.logicalIndex),
-          id: ids.slide(slot.logicalIndex),
-        },
-        user as React.HTMLAttributes<HTMLElement> & DataAttributes,
-      ) as unknown as P;
-    };
-
-    const getPrevButtonProps = <P extends React.ButtonHTMLAttributes<HTMLButtonElement> & DataAttributes>(
-      user?: P,
-    ) => {
-      const base = getPrevButtonBindings(
-        { canPrev: can.canPrev, controlsId: ids.viewport, id: ids.prevButton },
-        user as React.ButtonHTMLAttributes<HTMLButtonElement> & DataAttributes,
-      );
-      return {
-        ...base,
-        onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-          (base.onClick as undefined | ((e: React.MouseEvent<HTMLButtonElement>) => void))?.(
-            event,
-          );
-          handlePrev(event);
-        },
-      } as unknown as P;
-    };
-
-    const getNextButtonProps = <P extends React.ButtonHTMLAttributes<HTMLButtonElement> & DataAttributes>(
-      user?: P,
-    ) => {
-      const base = getNextButtonBindings(
-        { canNext: can.canNext, controlsId: ids.viewport, id: ids.nextButton },
-        user as React.ButtonHTMLAttributes<HTMLButtonElement> & DataAttributes,
-      );
-      return {
-        ...base,
-        onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-          (base.onClick as undefined | ((e: React.MouseEvent<HTMLButtonElement>) => void))?.(
-            event,
-          );
-          handleNext(event);
-        },
-      } as unknown as P;
-    };
-
-    const getListProps = <P extends React.ComponentPropsWithRef<"div"> & DataAttributes>(user?: P) => ({
-      ...(user ?? {}),
-    }) as P;
-
-    const getDotProps = <P extends React.ButtonHTMLAttributes<HTMLButtonElement> & DataAttributes>(
-      index: number,
-      user?: P,
-    ) => {
-      const base = { ...(user ?? {}) } as P;
-      return {
-        ...base,
-        "aria-controls": ids.viewport,
-        "aria-current": index === state.index ? "true" : undefined,
-        onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-          (base.onClick as undefined | ((e: React.MouseEvent<HTMLButtonElement>) => void))?.(event);
-          handleGoTo(index, event);
-        },
-      } as P;
-    };
-
-    const getAutoplayToggleProps = <P extends React.ButtonHTMLAttributes<HTMLButtonElement> & DataAttributes>(
-      user?: P,
-    ) => {
-      const base = { ...(user ?? {}) } as P;
-      return {
-        ...base,
-        "aria-pressed": state.autoplay.enabled,
-        onClick: (event: React.MouseEvent<HTMLButtonElement>) => {
-          (base.onClick as undefined | ((e: React.MouseEvent<HTMLButtonElement>) => void))?.(event);
-          if (!canControlPlaying) return;
-          dispatch(
-            buildAutoplaySetEnabled({ enabled: !state.autoplay.enabled, source: "api" }),
-          );
-        },
-      } as P;
-    };
-
-    const getAnnouncerProps = <P extends React.HTMLAttributes<HTMLElement> & DataAttributes>(
-      user?: P,
-    ) => ({
-      ...getLiveRegionProps({ mode: liveMode, text: announcement }),
-      ...user,
-      id: ids.liveRegion,
-    }) as P;
-
-    return {
-      getRootProps,
-      getViewportProps,
-      getTrackProps,
-      getSlideProps,
-      getPrevButtonProps,
-      getNextButtonProps,
-      pagination: {
-        count: state.slideCount,
-        index: state.index as unknown as number,
-        getListProps,
-        getDotProps,
-      },
-      autoplayToggle: {
-        getButtonProps: getAutoplayToggleProps,
-      },
-      announcer: {
-        message: announcement,
-        getProps: getAnnouncerProps,
-      },
-    };
-  },
-    [
-      announcement,
-      can.canNext,
-      can.canPrev,
-      canControlPlaying,
-      getSlotForRenderIndex,
-      handleGoTo,
-      handleNext,
-      handlePrev,
+    return composeBindings({
+      normalizedLabel: normalized.label,
+      rootTabIndex: opts.accessibility?.tabIndex,
+      controlsId,
       ids,
-      internalRefs,
-      liveMode,
-      normalized.label,
       rootRef,
-      state.autoplay.enabled,
-      state.index,
-      state.slideCount,
-      trackRef,
       viewportRef,
-    ],
-  );
+      trackRef,
+      slideRefForIndex: (logicalIndex) => internalRefs.slide(logicalIndex),
+
+      canPrev: can.canPrev,
+      canNext: can.canNext,
+
+      slideCount: state.slideCount,
+      index: state.index as unknown as number,
+
+      canNavigate,
+      canControlPlaying,
+
+      axis: state.axis,
+      isDraggable,
+      isDragging: state.isDragging,
+
+      autoplayEnabled: state.autoplay.enabled,
+
+      liveMode,
+      announcement,
+
+      handlePrev,
+      handleNext,
+      handleGoTo,
+
+      dispatchAutoplayToggle: () => {
+        dispatch(
+          buildAutoplaySetEnabled({
+            enabled: !state.autoplay.enabled,
+            source: "api",
+          }),
+        );
+      },
+
+      logicalIndexFromRenderIndex,
+    });
+  }, [
+    announcement,
+    can.canNext,
+    can.canPrev,
+    canControlPlaying,
+    canNavigate,
+    controlsId,
+    dispatch,
+    handleGoTo,
+    handleNext,
+    handlePrev,
+    ids,
+    internalRefs,
+    isDraggable,
+    state.isDragging,
+    liveMode,
+    logicalIndexFromRenderIndex,
+    normalized.label,
+    rootRef,
+    state.autoplay.enabled,
+    state.axis,
+    state.index,
+    state.slideCount,
+    trackRef,
+    viewportRef,
+  ]);
 
   return { engine, bindings };
-}
-
-// --------------------------------------------------------
-// DOM helpers (boundary-only, used for snap/commit)
-// --------------------------------------------------------
-
-function clampIndexNumber(index: number, count: number, loop: boolean): number {
-  if (count <= 0) return 0;
-  const i = Math.trunc(index);
-
-  if (loop) {
-    const m = ((i % count) + count) % count;
-    return m;
-  }
-
-  if (i < 0) return 0;
-  if (i >= count) return count - 1;
-  return i;
-}
-
-function computeScrollTargetPxFromDom(params: {
-  readonly axis: Axis;
-  readonly align: "start" | "center" | "end";
-  readonly viewport: HTMLElement;
-  readonly slideEl: HTMLElement | null;
-}): Px {
-  const { viewport, slideEl, axis, align } = params;
-  if (!slideEl) {
-    const raw = axis === "x" ? viewport.scrollLeft : viewport.scrollTop;
-    return asPx(Number.isFinite(raw) ? raw : 0);
-  }
-
-  const vpRect = viewport.getBoundingClientRect();
-  const slRect = slideEl.getBoundingClientRect();
-
-  const vpStart = axis === "x" ? vpRect.left : vpRect.top;
-  const vpSize = axis === "x" ? vpRect.width : vpRect.height;
-
-  const slStart = axis === "x" ? slRect.left : slRect.top;
-  const slSize = axis === "x" ? slRect.width : slRect.height;
-
-  const currentScroll = axis === "x" ? viewport.scrollLeft : viewport.scrollTop;
-
-  const vpLine = align === "start" ? 0 : align === "center" ? vpSize / 2 : vpSize;
-  const slPoint = align === "start" ? 0 : align === "center" ? slSize / 2 : slSize;
-
-  const delta = slStart + slPoint - (vpStart + vpLine);
-  const next = currentScroll + delta;
-
-  return asPx(Number.isFinite(next) ? next : currentScroll);
-}
-
-interface NormalizedOptions {
-  readonly initialState: CreateInitialStateOptions;
-  readonly label: string;
-  readonly align: SnapTarget;
-  readonly smoothScroll: boolean;
-  readonly indexReadonly: boolean;
-  readonly playingReadonly: boolean;
-}
-
-function normalizeOptions<IndexC extends Controllable<number>, PlayingC extends Controllable<boolean>>(
-  opts: UseCarouselOptions<IndexC, PlayingC>,
-): NormalizedOptions {
-  const axis = opts.layout?.axis ?? "x";
-  const dir = opts.layout?.readingDirection ?? "ltr";
-  const loop = opts.loop?.enabled ?? false;
-
-  const { initialIndex, indexReadonly } = resolveIndexConfig(opts.index);
-  const { enabled: autoplayEnabled, playingReadonly } = resolvePlayingConfig(
-    opts.autoplay?.playing,
-    opts.autoplay?.enabled,
-  );
-
-  const intervalMs = resolveAutoplayInterval(opts.autoplay?.dwellMs, opts.autoplay?.startDelayMs);
-
-  const initialState: CreateInitialStateOptions = {
-    axis,
-    dir,
-    loop,
-    slideCount: opts.slideCount,
-    initialIndex,
-    autoplayEnabled,
-    autoplayIntervalMs: intervalMs,
-  };
-
-  return {
-    initialState,
-    label: opts.accessibility?.label ?? "Carousel",
-    align: opts.layout?.snapTo ?? "center",
-    smoothScroll: !opts.motion?.disabled,
-    indexReadonly,
-    playingReadonly,
-  };
-}
-
-function resolveIndexConfig(config: Controllable<number> | undefined): {
-  readonly initialIndex: number;
-  readonly indexReadonly: boolean;
-} {
-  if (!config) {
-    return { initialIndex: 0, indexReadonly: false };
-  }
-
-  if (config.mode === "controlled") {
-    const isReadonly = "readonly" in config && config.readonly === true;
-    return { initialIndex: config.value, indexReadonly: isReadonly };
-  }
-
-  return { initialIndex: config.defaultValue ?? 0, indexReadonly: false };
-}
-
-function resolvePlayingConfig(
-  config: Controllable<boolean> | undefined,
-  fallbackEnabled?: boolean,
-): { readonly enabled: boolean; readonly playingReadonly: boolean } {
-  if (!config) {
-    return { enabled: Boolean(fallbackEnabled ?? false), playingReadonly: false };
-  }
-
-  if (config.mode === "controlled") {
-    const isReadonly = "readonly" in config && config.readonly === true;
-    return { enabled: config.value, playingReadonly: isReadonly };
-  }
-
-  return { enabled: config.defaultValue ?? Boolean(fallbackEnabled ?? false), playingReadonly: false };
-}
-
-function resolveAutoplayInterval(
-  dwell: number | ((ctx: { index: number; slideCount: number }) => number) | undefined,
-  startDelayMs: number | undefined,
-): number | undefined {
-  if (typeof dwell === "number") return dwell;
-  if (typeof startDelayMs === "number") return startDelayMs;
-  return undefined;
-}
-
-function computeCommittedIndexFromDom(params: {
-  readonly axis: Axis;
-  readonly align: "start" | "center" | "end";
-  readonly viewport: HTMLElement | null;
-  readonly slides: Map<number, HTMLElement | null>;
-  readonly slideCount: number;
-  readonly loop: boolean;
-  readonly fallbackIndex: number;
-}): number {
-  const viewport = params.viewport;
-  if (!viewport) return params.fallbackIndex;
-
-  const vpRect = viewport.getBoundingClientRect();
-  const vpStart = params.axis === "x" ? vpRect.left : vpRect.top;
-  const vpSize = params.axis === "x" ? vpRect.width : vpRect.height;
-
-  const vpLine =
-    params.align === "start"
-      ? vpStart
-      : params.align === "center"
-        ? vpStart + vpSize / 2
-        : vpStart + vpSize;
-
-  let bestIdx = params.fallbackIndex;
-  let bestDist = Number.POSITIVE_INFINITY;
-
-  const count = Math.max(0, Math.trunc(params.slideCount));
-  for (let i = 0; i < count; i += 1) {
-    const el = params.slides.get(i) ?? null;
-    if (!el) continue;
-
-    const r = el.getBoundingClientRect();
-    const slStart = params.axis === "x" ? r.left : r.top;
-    const slSize = params.axis === "x" ? r.width : r.height;
-
-    const slPoint =
-      params.align === "start"
-        ? slStart
-        : params.align === "center"
-          ? slStart + slSize / 2
-          : slStart + slSize;
-
-    const dist = Math.abs(slPoint - vpLine);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestIdx = i;
-    }
-  }
-
-  return clampIndexNumber(bestIdx, params.slideCount, params.loop);
-}
-
-/**
- * Extract slide index from DOM target.
- * This expects slides to set: data-carousel-slide-index="<n>".
- */
-function extractSlideIndexFromDomTarget(target: EventTarget | null): number | null {
-  if (!(target instanceof HTMLElement)) return null;
-
-  const el = target.closest?.("[data-carousel-slide-index]");
-  if (!el) return null;
-
-  const raw = el.getAttribute("data-carousel-slide-index");
-  if (raw === null) return null;
-
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return null;
-
-  const i = Math.trunc(n);
-  if (i < 0) return null;
-
-  return i;
 }

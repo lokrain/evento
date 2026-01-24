@@ -13,7 +13,14 @@ export default function GlobalNotFound() {
   return (
     <html lang={routing.defaultLocale}>
       <body className={`${plovdiv.display.variable} ${plovdiv.sans.variable} antialiased`}>
-        <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 px-6 text-center font-sans">
+        <a href="#main-content" className="skip-link">
+          Skip to Content
+        </a>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 px-6 text-center font-sans"
+        >
           <Overline>404</Overline>
           <H1>Страницата не е намерена</H1>
           <Lead>Изглежда, че адресът е грешен или страницата вече не съществува.</Lead>

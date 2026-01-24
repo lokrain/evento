@@ -6,8 +6,14 @@ export function reduceAutoplay(state: CarouselState, action: CarouselAction): Ca
   switch (action.type) {
     case "GATE/SET": {
       const { gate, value } = action.payload;
-      if (state.gates[gate] === value) return state;
-      return { ...state, gates: { ...state.gates, [gate]: value } };
+      const nextGates = state.gates[gate] === value ? state.gates : { ...state.gates, [gate]: value };
+      const nextDragging = gate === "dragging" ? Boolean(value) : state.isDragging;
+      if (nextGates === state.gates && nextDragging === state.isDragging) return state;
+      return {
+        ...state,
+        gates: nextGates,
+        isDragging: nextDragging,
+      };
     }
 
     case "AUTOPLAY/SET_ENABLED": {

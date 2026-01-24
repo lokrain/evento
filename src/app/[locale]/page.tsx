@@ -2,7 +2,18 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Icons } from "@/components/ui/icons";
+import {
+  AcousticIcon,
+  BandIcon,
+  ContractIcon,
+  CurationIcon,
+  DisputeIcon,
+  DjIcon,
+  EscrowIcon,
+  McIcon,
+  MusicIcon,
+  ShieldCheckIcon,
+} from "@/components/ui/icons";
 import {
   Item,
   ItemContent,
@@ -72,8 +83,8 @@ export default async function HomePage({ params }: PageProps) {
         </div>
         <ItemGroup className="mt-10 gap-3">
           {safety.map((item, index) => {
-            const safetyIcons = [Icons.escrow, Icons.contract, Icons.curation, Icons.dispute];
-            const Icon = safetyIcons[index] ?? Icons.shieldCheck;
+            const safetyIcons = [EscrowIcon, ContractIcon, CurationIcon, DisputeIcon];
+            const Icon = safetyIcons[index] ?? ShieldCheckIcon;
             return (
               <Item key={item.title} variant="outline" size="sm" className="hover-lift">
                 <ItemMedia variant="icon">
@@ -138,14 +149,14 @@ export default async function HomePage({ params }: PageProps) {
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {talent.map((card, index) => {
             const talentIcons = [
-              Icons.dj,
-              Icons.mc,
-              Icons.band,
-              Icons.acoustic,
-              Icons.band,
-              Icons.dj,
+              DjIcon,
+              McIcon,
+              BandIcon,
+              AcousticIcon,
+              BandIcon,
+              DjIcon,
             ];
-            const Icon = talentIcons[index] ?? Icons.music;
+            const Icon = talentIcons[index] ?? MusicIcon;
             return (
               <Card key={card.title} className="hover-lift">
                 <CardHeader>

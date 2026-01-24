@@ -2,8 +2,9 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
-import { useTransition } from "react";
+import { useTransition, type MouseEvent } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Link } from "@/i18n/navigation";
 import { localeMeta, routing } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 
@@ -47,10 +48,10 @@ export function LocaleSwitcher() {
   const locale = useLocale();
   const [isPending, startTransition] = useTransition();
 
-  const switchLocale = (nextLocale: string) => {
+  const buildHref = (nextLocale: string) => {
     const segments = pathname.split("/").filter(Boolean);
     segments[0] = nextLocale; // replace locale segment
-    router.push(`/${segments.join("/")}`);
+    return `/${segments.join("/")}`;
   };
 
   const locales = routing.locales;
@@ -64,17 +65,39 @@ export function LocaleSwitcher() {
     label: nextLocale.toUpperCase(),
     flag: "en",
   };
+  const nextHref = buildHref(nextLocale);
+
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented) return;
+    if (isPending) {
+      event.preventDefault();
+      return;
+    }
+
+    if (
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    startTransition(() => router.push(nextHref));
+  };
 
   return (
-    <button
-      type="button"
-      onClick={() => startTransition(() => switchLocale(nextLocale))}
+    <Link
+      href={nextHref}
+      onClick={handleClick}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-background p-0 transition hover-lift",
+        "inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-background p-0 transition touch-manipulation hover-lift",
         "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         isPending && "cursor-wait",
       )}
-      disabled={isPending}
+      aria-disabled={isPending}
       aria-busy={isPending}
       aria-label={`Switch language to ${next.label}`}
     >
@@ -85,7 +108,7 @@ export function LocaleSwitcher() {
       ) : (
         <FlagEn />
       )}
-    </button>
+    </Link>
   );
 }
 

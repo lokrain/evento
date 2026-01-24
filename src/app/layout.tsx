@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="antialiased">
         <a href="#main-content" className="skip-link">
-          Skip to content
+          Skip to Content
         </a>
         <ThemeProvider defaultColor="sage" defaultMode="system">
           {children}

@@ -4,7 +4,7 @@ import type { DataAttributes } from "../core/types";
 
 export interface RootBindings {
   readonly role: "region";
-  readonly tabIndex: 0;
+  readonly tabIndex: number;
   readonly "aria-roledescription"?: string;
   readonly "aria-label": string;
 }
@@ -19,6 +19,7 @@ export function getRootBindings(
     readonly ref: React.Ref<HTMLElement>;
     readonly id?: string;
     readonly roledescription?: string | false;
+    readonly tabIndex?: number;
   },
   user?: React.HTMLAttributes<HTMLElement> & DataAttributes,
 ): RootBindingsProps {
@@ -26,6 +27,7 @@ export function getRootBindings(
     label: params.label,
     id: params.id,
     roledescription: params.roledescription,
+    tabIndex: params.tabIndex,
   });
   const base: RootBindings & { readonly ref: React.Ref<HTMLElement> } = {
     ...aria,

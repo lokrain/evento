@@ -20,22 +20,28 @@ export function attachFocusPinGate(params: {
   readonly root: HTMLElement;
   readonly slideIndexFromTarget: (target: EventTarget | null) => number | null;
   readonly dispatch: Dispatch<CarouselAction>;
+  readonly onFocusWithinStart?: () => void;
 }): () => void {
-  const { root, slideIndexFromTarget, dispatch } = params;
+  const { root, slideIndexFromTarget, dispatch, onFocusWithinStart } = params;
+  let hasFocusWithin = false;
 
   const onFocusIn = (e: FocusEvent) => {
     if (!shouldPinOnFocus()) return;
 
+    if (!hasFocusWithin) {
+      hasFocusWithin = true;
+      dispatch(
+        buildGateSet({
+          gate: "focusWithin",
+          value: true,
+          source: "dom",
+        })
+      );
+      onFocusWithinStart?.();
+    }
+
     const idx = slideIndexFromTarget(e.target);
     if (idx === null) return;
-
-    dispatch(
-      buildGateSet({
-        gate: "focusWithin",
-        value: true,
-        source: "dom",
-      })
-    );
 
     dispatch(buildVirtualPin(idx, "focus"));
   };
@@ -57,6 +63,7 @@ export function attachFocusPinGate(params: {
 
     // If focus left the carousel entirely
     if (!root.contains(next as Node | null)) {
+      hasFocusWithin = false;
       dispatch(
         buildGateSet({
           gate: "focusWithin",

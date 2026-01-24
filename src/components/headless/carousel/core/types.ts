@@ -6,7 +6,7 @@ export type Axis = "x" | "y";
 export type ReadingDirection = "ltr" | "rtl";
 export type Dir = ReadingDirection;
 export type SnapTarget = "start" | "center" | "end";
-export type LiveRegionPoliteness = "polite" | "assertive";
+export type LiveRegionPoliteness = "off" | "polite" | "assertive";
 
 export type LogicalIndex = number & { readonly __brand: "LogicalIndex" };
 export type Px = number & { readonly __brand: "Px" };
@@ -154,6 +154,7 @@ export interface UseCarouselOptions<
     controlsId?: string;
     live?: LiveRegionPoliteness;
     announceChanges?: boolean;
+    tabIndex?: number;
   };
 
   debug?: boolean;

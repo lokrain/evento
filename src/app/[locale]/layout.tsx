@@ -106,7 +106,7 @@ export default async function LocaleLayout({
     <>
       <div className={`${localeFontClass} font-sans`} data-locale={locale}>
         <NextIntlClientProvider messages={messages} locale={locale}>
-          <main id="main-content" className="min-h-screen">
+          <main id="main-content" tabIndex={-1} className="min-h-screen">
             {children}
           </main>
         </NextIntlClientProvider>

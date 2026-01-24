@@ -2,14 +2,14 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Icons } from "@/components/ui/icons";
+import { AriaIcon, BadgeCheckIcon, LogoIcon, RadixIcon } from "@/components/ui/icons";
 import { H1, Lead, Overline } from "@/components/ui/typography";
 import { HeroCarousels } from "./hero-carousels";
 
 export async function Hero({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: "Hero" });
   const bullets = (t.raw("bullets") as string[]) ?? [];
-  const bulletIcons = [Icons.logo, Icons.radix, Icons.aria];
+  const bulletIcons = [LogoIcon, RadixIcon, AriaIcon];
 
   return (
     <section
@@ -32,7 +32,7 @@ export async function Hero({ locale }: { locale: string }) {
                 </Lead>
                 <ul className="grid max-w-lg gap-2 text-sm text-muted-foreground">
                   {bullets.map((bullet, index) => {
-                    const Icon = bulletIcons[index] ?? Icons.badgeCheck;
+                    const Icon = bulletIcons[index] ?? BadgeCheckIcon;
                     return (
                       <li key={bullet} className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />

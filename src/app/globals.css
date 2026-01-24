@@ -428,10 +428,32 @@
     transition: transform 200ms var(--default-transition-timing-function);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .nav-underline::after {
+      transition: none;
+    }
+  }
+
   .nav-underline:hover::after,
   .nav-underline:focus-visible::after,
   .nav-underline[data-active="true"]::after {
     transform: scaleX(1);
+  }
+
+  [data-carousel-draggable="true"] {
+    cursor: grab;
+  }
+
+  [data-carousel-dragging="true"] {
+    cursor: grabbing;
+  }
+
+  [data-carousel-draggable="true"][data-carousel-axis="x"] {
+    touch-action: pan-y;
+  }
+
+  [data-carousel-draggable="true"][data-carousel-axis="y"] {
+    touch-action: pan-x;
   }
 }
 
@@ -454,11 +476,24 @@
 }
 
 @layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  a,
+  button {
+    touch-action: manipulation;
   }
 }
 
@@ -479,6 +514,12 @@
 
 .skip-link:focus {
   transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
 }
 
 .icon-primary {

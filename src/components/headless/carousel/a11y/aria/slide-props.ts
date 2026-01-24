@@ -13,7 +13,7 @@ export function getSlideAriaProps(params: {
     ...(params.roledescription === false
       ? {}
       : { "aria-roledescription": params.roledescription ?? "slide" }),
-    "aria-label": `Slide ${i + 1} of ${t}`,
+    "aria-label": `${i + 1} of ${t}`,
     "data-carousel-slide-index": i,
   };
 }

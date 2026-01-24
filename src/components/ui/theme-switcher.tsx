@@ -8,21 +8,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Icons } from "@/components/ui/icons";
+import {
+  CheckIcon,
+  MonitorIcon,
+  MoonIcon,
+  PaletteIcon,
+  SunIcon,
+} from "@/components/ui/icons";
 import { useTheme } from "@/components/ui/theme-provider";
 import { type ThemeMode, themeConfigs } from "@/lib/theme-config";
 import { cn } from "@/lib/utils";
 
-const modeOptions: { value: ThemeMode; label: string; icon: typeof Icons.sun }[] = [
-  { value: "light", label: "Светла", icon: Icons.sun },
-  { value: "dark", label: "Тъмна", icon: Icons.moon },
-  { value: "system", label: "Системна", icon: Icons.monitor },
+const modeOptions: { value: ThemeMode; label: string; icon: typeof SunIcon }[] = [
+  { value: "light", label: "Светла", icon: SunIcon },
+  { value: "dark", label: "Тъмна", icon: MoonIcon },
+  { value: "system", label: "Системна", icon: MonitorIcon },
 ];
 
 export function ThemeSwitcher() {
   const { themeColor, themeMode, setThemeColor, setThemeMode, resolvedMode } = useTheme();
 
-  const CurrentModeIcon = modeOptions.find((m) => m.value === themeMode)?.icon ?? Icons.monitor;
+  const CurrentModeIcon = modeOptions.find((m) => m.value === themeMode)?.icon ?? MonitorIcon;
 
   return (
     <DropdownMenu>
@@ -33,7 +39,7 @@ export function ThemeSwitcher() {
           className="relative h-9 w-9 rounded-full border border-border bg-muted focus-visible:ring-2 focus-visible:ring-ring"
           aria-label="Изберете тема"
         >
-          <Icons.palette className="h-5 w-5" aria-hidden="true" />
+          <PaletteIcon className="h-5 w-5" aria-hidden="true" />
           <span
             className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-primary"
             aria-hidden="true"
@@ -52,7 +58,7 @@ export function ThemeSwitcher() {
               type="button"
               onClick={() => setThemeMode(option.value)}
               className={cn(
-                "inline-flex h-9 items-center justify-center rounded-md text-muted-foreground transition-colors",
+                "inline-flex h-9 items-center justify-center rounded-md text-muted-foreground transition-colors touch-manipulation",
                 "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 themeMode === option.value && "bg-background text-foreground shadow-sm",
               )}
@@ -66,7 +72,7 @@ export function ThemeSwitcher() {
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="flex items-center gap-2">
-          <Icons.palette className="h-4 w-4" aria-hidden="true" />
+          <PaletteIcon className="h-4 w-4" aria-hidden="true" />
           Цветова тема
         </DropdownMenuLabel>
         <div className="grid grid-cols-2 gap-2 p-1">
@@ -77,7 +83,7 @@ export function ThemeSwitcher() {
               onClick={() => setThemeColor(theme.id)}
               className={cn(
                 "group relative flex h-11 items-center justify-center rounded-md border border-border/60 bg-muted/30",
-                "transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "transition-colors touch-manipulation hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 themeColor === theme.id && "border-primary/60",
               )}
               aria-pressed={themeColor === theme.id}
@@ -94,7 +100,7 @@ export function ThemeSwitcher() {
                 <span className="h-4 w-4 rounded-full border border-border bg-accent" />
               </div>
               {themeColor === theme.id && (
-                <Icons.check
+                <CheckIcon
                   className="absolute right-1 top-1 h-3 w-3 text-primary"
                   aria-hidden="true"
                 />

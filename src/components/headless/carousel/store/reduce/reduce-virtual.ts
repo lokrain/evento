@@ -2,6 +2,13 @@
 
 import type { CarouselAction } from "../../actions/action-types";
 import type { CarouselState } from "../state";
+import type { VirtualWindow } from "../../core/types";
+
+function windowsEqual(a: VirtualWindow | null, b: VirtualWindow | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.start === b.start && a.end === b.end && a.size === b.size;
+}
 
 function cloneSetAdd(prev: ReadonlySet<number>, value: number): ReadonlySet<number> {
   if (prev.has(value)) return prev;
@@ -21,7 +28,7 @@ export function reduceVirtual(state: CarouselState, action: CarouselAction): Car
   switch (action.type) {
     case "VIRTUAL/SET_WINDOW": {
       const nextWindow = action.payload.window;
-      if (state.virtual.window === nextWindow) return state;
+      if (windowsEqual(state.virtual.window, nextWindow)) return state;
 
       return {
         ...state,

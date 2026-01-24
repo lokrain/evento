@@ -43,3 +43,5 @@ export function createRefs() {
 
   return { state, root, viewport, track, slide };
 }
+
+export type CarouselRefs = ReturnType<typeof createRefs>;
