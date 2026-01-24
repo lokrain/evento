@@ -5,11 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AriaIcon, BadgeCheckIcon, LogoIcon, RadixIcon } from "@/components/ui/icons";
 import { H1, Lead, Overline } from "@/components/ui/typography";
 import { HeroCarousels } from "./hero-carousels";
+import { featuredBands, splitBandsForColumns } from "@/data/bands";
 
 export async function Hero({ locale }: { locale: string }) {
   const t = await getTranslations({ locale, namespace: "Hero" });
   const bullets = (t.raw("bullets") as string[]) ?? [];
   const bulletIcons = [LogoIcon, RadixIcon, AriaIcon];
+  const { left, right } = splitBandsForColumns(featuredBands);
 
   return (
     <section
@@ -51,7 +53,7 @@ export async function Hero({ locale }: { locale: string }) {
                 </div>
               </CardContent>
             </Card>
-            <HeroCarousels leftCount={16} rightCount={20} className="h-[80dvh]" />
+            <HeroCarousels leftBands={left} rightBands={right} className="h-[80dvh]" />
           </div>
         </div>
       </div>

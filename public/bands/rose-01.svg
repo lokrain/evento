@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" role="img" aria-label="Rose neon haze">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b0b18" />
+      <stop offset="50%" stop-color="#4f1327" />
+      <stop offset="100%" stop-color="#6f1f3a" />
+    </linearGradient>
+    <radialGradient id="glow" cx="40%" cy="25%" r="60%">
+      <stop offset="0%" stop-color="#ff6faa" stop-opacity="0.75" />
+      <stop offset="70%" stop-color="#4f1327" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)" />
+  <rect width="1200" height="1600" fill="url(#glow)" />
+  <g fill="none" stroke="#ff8dc0" stroke-opacity="0.35">
+    <path d="M0 300 C280 250 640 260 1200 420" stroke-width="6" />
+    <path d="M0 600 C330 520 700 540 1200 720" stroke-width="4" />
+    <path d="M0 920 C260 860 610 870 1200 1020" stroke-width="5" />
+  </g>
+  <g fill="#ff6fa8" fill-opacity="0.35">
+    <circle cx="220" cy="1160" r="200" />
+    <circle cx="980" cy="1140" r="210" />
+  </g>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" role="img" aria-label="Emerald studio ambience">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#04221d" />
+      <stop offset="50%" stop-color="#0c3d35" />
+      <stop offset="100%" stop-color="#0b5143" />
+    </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="30%" r="55%">
+      <stop offset="0%" stop-color="#4ce3b1" stop-opacity="0.7" />
+      <stop offset="70%" stop-color="#0b3d33" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)" />
+  <rect width="1200" height="1600" fill="url(#glow)" />
+  <g fill="none" stroke="#62f5c4" stroke-opacity="0.35">
+    <path d="M0 360 C340 280 680 280 1200 420" stroke-width="6" />
+    <path d="M0 640 C380 520 720 520 1200 700" stroke-width="4" />
+    <path d="M0 940 C300 860 650 860 1200 1020" stroke-width="5" />
+  </g>
+  <g fill="#42cfa2" fill-opacity="0.35">
+    <circle cx="180" cy="1120" r="200" />
+    <circle cx="980" cy="1180" r="180" />
+  </g>
+</svg>

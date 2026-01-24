@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600" role="img" aria-label="Amber stage glow">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2a1405" />
+      <stop offset="50%" stop-color="#5a2d0b" />
+      <stop offset="100%" stop-color="#7a3e0f" />
+    </linearGradient>
+    <radialGradient id="glow" cx="70%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#ffbf5a" stop-opacity="0.7" />
+      <stop offset="70%" stop-color="#4b2408" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="1600" fill="url(#bg)" />
+  <rect width="1200" height="1600" fill="url(#glow)" />
+  <g fill="none" stroke="#ffc36e" stroke-opacity="0.35">
+    <path d="M0 320 C240 260 560 260 1200 380" stroke-width="6" />
+    <path d="M0 620 C300 520 620 520 1200 700" stroke-width="4" />
+    <path d="M0 900 C260 860 620 860 1200 980" stroke-width="5" />
+  </g>
+  <g fill="#f5a54b" fill-opacity="0.35">
+    <circle cx="260" cy="1180" r="190" />
+    <circle cx="960" cy="1100" r="240" />
+  </g>
+</svg>
